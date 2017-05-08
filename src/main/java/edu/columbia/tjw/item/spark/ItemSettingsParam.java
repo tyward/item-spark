@@ -24,7 +24,7 @@ import org.apache.spark.ml.util.Identifiable;
  *
  * @author tyler
  */
-public class ItemSettingsParam extends Param<ItemSettings>
+public class ItemSettingsParam extends Param<ItemClassifierSettings>
 {
     private static final String GUID = "7cc313e747f68bec5a42979e8a373d24";
     private static final SettingsParamIdentity IDENT = new SettingsParamIdentity();

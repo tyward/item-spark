@@ -49,32 +49,18 @@ public class ItemClassifier<S extends ItemStatus<S>, R extends ItemRegressor<R>,
 
     private static final long serialVersionUID = 0x7cc313e747f68becL;
 
-    private final ItemSettings _settings;
-    private final S _fromStatus;
-    private final R _intercept;
-    private final ItemCurveFactory<R, T> _factory;
+    private final ItemClassifierSettings<S, R, T> _settings;
     private final String _uid;
-    private final int _maxParamCount;
 
-    public ItemClassifier(final ItemSettings settings_, final ItemCurveFactory<R, T> factory_, final R intercept_, final S status_, final int maxParamCount_) {
-        if (null == settings_) {
-            _settings = new ItemSettings();
-        } else {
-            _settings = settings_;
-        }
-
+    public ItemClassifier(final ItemClassifierSettings<S, R, T> settings_) {
+        _settings = settings_;
         _uid = RandomTool.randomString(64);
-
-        _factory = factory_;
-        _fromStatus = status_;
-        _intercept = intercept_;
-        _maxParamCount = maxParamCount_;
     }
 
     @Override
     public ItemClassifier<S, R, T> copy(ParamMap paramMap_) {
-        final ItemSettings settings = paramMap_.apply(ItemSettingsParam.singleton());
-        return new ItemClassifier<>(settings, _factory, _intercept, _fromStatus, _maxParamCount);
+        final ItemClassifierSettings<S, R, T> settings = paramMap_.apply(ItemSettingsParam.singleton());
+        return new ItemClassifier<>(settings);
     }
 
     @Override
@@ -99,12 +85,14 @@ public class ItemClassifier<S extends ItemStatus<S>, R extends ItemRegressor<R>,
         //Generate the data set...
         final ItemStatusGrid<S, R> data = null;
 
-        final ItemFitter<S, R, T> fitter = new ItemFitter<>(_factory, _intercept, _fromStatus, data);
+        final ItemFitter<S, R, T> fitter = new ItemFitter<>(_settings.getFactory(), _settings.getIntercept(), _settings.getFromStatus(), data);
+
+        final int maxParams = _settings.getMaxParamCount();
 
         try {
             for (int i = 0; i < 3; i++) {
                 final int usedParams = fitter.getBestParameters().getEffectiveParamCount();
-                final int remainingParams = _maxParamCount - usedParams;
+                final int remainingParams = maxParams - usedParams;
 
                 if (remainingParams < 1) {
                     //Not enough params to do anything, break out.
@@ -115,17 +103,17 @@ public class ItemClassifier<S extends ItemStatus<S>, R extends ItemRegressor<R>,
                 fitter.fitCoefficients(null);
 
                 //Now add the flags, recalibrate beta values.
-                fitter.addCoefficients(null, null);
+                fitter.addCoefficients(null, _settings.getNonCurveRegressors());
 
-                final int curveAvailable = _maxParamCount - fitter.getBestParameters().getEffectiveParamCount();
+                final int curveAvailable = maxParams - fitter.getBestParameters().getEffectiveParamCount();
 
                 if (curveAvailable > 3) {
                     //Now expand the model by adding curves.
-                    fitter.expandModel(null, null, curveAvailable);
+                    fitter.expandModel(_settings.getCurveRegressors(), null, curveAvailable);
                 } else {
                     break;
                 }
-                
+
                 //Relaxation based calibration of current curves.
                 fitter.calibrateCurves();
 
@@ -136,7 +124,7 @@ public class ItemClassifier<S extends ItemStatus<S>, R extends ItemRegressor<R>,
                 fitter.trim(true);
 
                 //Now run full scale annealing.
-                fitter.runAnnealingByEntry(null, false);
+                fitter.runAnnealingByEntry(_settings.getCurveRegressors(), false);
             }
 
         } catch (final ConvergenceException e) {
