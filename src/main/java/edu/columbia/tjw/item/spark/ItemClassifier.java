@@ -19,24 +19,18 @@
  */
 package edu.columbia.tjw.item.spark;
 
-import edu.columbia.tjw.item.ItemCurveFactory;
 import edu.columbia.tjw.item.ItemCurveType;
 import edu.columbia.tjw.item.ItemParameters;
 import edu.columbia.tjw.item.ItemRegressor;
-import edu.columbia.tjw.item.ItemSettings;
 import edu.columbia.tjw.item.ItemStatus;
 import edu.columbia.tjw.item.data.ItemStatusGrid;
 import edu.columbia.tjw.item.fit.ItemFitter;
 import edu.columbia.tjw.item.optimize.ConvergenceException;
 import edu.columbia.tjw.item.util.random.RandomTool;
-import java.util.ArrayList;
-import java.util.Iterator;
-import java.util.List;
 import org.apache.spark.ml.classification.ProbabilisticClassifier;
 import org.apache.spark.ml.linalg.Vector;
 import org.apache.spark.ml.param.ParamMap;
 import org.apache.spark.sql.Dataset;
-import org.apache.spark.sql.Row;
 
 /**
  *
@@ -69,23 +63,11 @@ public class ItemClassifier<S extends ItemStatus<S>, R extends ItemRegressor<R>,
         final String featureCol = this.getFeaturesCol();
         final String labelCol = this.getLabelCol();
 
-        final Iterator<Row> rowForm = (Iterator<Row>) data_.toLocalIterator();
-        final List<double[]> rows = new ArrayList<>();
-        final List<Integer> toStatus = new ArrayList<>();
+        final ItemStatusGrid<S, R> data = new SparkGridAdapter(data_, labelCol, featureCol,
+                this._settings.getRegressors(), this._settings.getFromStatus());
 
-        while (rowForm.hasNext()) {
-            final Row next = rowForm.next();
-            final Vector vec = (Vector) next.get(next.fieldIndex(featureCol));
-            final Number label = (Number) next.getAs(next.fieldIndex(labelCol));
-            rows.add(vec.toArray());
-            toStatus.add(label.intValue());
-
-        }
-
-        //Generate the data set...
-        final ItemStatusGrid<S, R> data = null;
-
-        final ItemFitter<S, R, T> fitter = new ItemFitter<>(_settings.getFactory(), _settings.getIntercept(), _settings.getFromStatus(), data);
+        final ItemFitter<S, R, T> fitter = new ItemFitter<>(_settings.getFactory(), 
+                _settings.getIntercept(), _settings.getFromStatus(), data);
 
         final int maxParams = _settings.getMaxParamCount();
 
