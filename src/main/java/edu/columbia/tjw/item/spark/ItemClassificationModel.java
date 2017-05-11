@@ -37,8 +37,8 @@ import org.apache.spark.ml.param.ParamMap;
  * @param <R>
  * @param <T>
  */
-public class ItemClassificationModel<S extends ItemStatus<S>, R extends ItemRegressor<R>, T extends ItemCurveType<T>> extends ProbabilisticClassificationModel<Vector, ItemClassificationModel<S, R, T>>
-{
+public class ItemClassificationModel<S extends ItemStatus<S>, R extends ItemRegressor<R>, T extends ItemCurveType<T>> extends ProbabilisticClassificationModel<Vector, ItemClassificationModel<S, R, T>> {
+
     private static final long serialVersionUID = 0x8c7eb061e0d2980aL;
 
     private final ItemParameters<S, R, T> _params;
@@ -47,34 +47,29 @@ public class ItemClassificationModel<S extends ItemStatus<S>, R extends ItemRegr
     private transient ItemModel<S, R, T> _model;
     private transient double[] _rawRegressors;
 
-    public ItemClassificationModel(final ItemParameters<S, R, T> params_)
-    {
+    public ItemClassificationModel(final ItemParameters<S, R, T> params_) {
         _params = params_;
         _uid = RandomTool.randomString(64);
     }
 
     @Override
-    public Vector raw2probabilityInPlace(final Vector rawProbabilities_)
-    {
+    public Vector raw2probabilityInPlace(final Vector rawProbabilities_) {
         //Do nothing, these are already probabilities.
         return rawProbabilities_;
     }
 
     @Override
-    public int numClasses()
-    {
+    public int numClasses() {
         return _params.getStatus().getReachableCount();
     }
 
     @Override
-    public Vector predictRaw(final Vector allRegressors_)
-    {
+    public Vector predictRaw(final Vector allRegressors_) {
         final ItemModel<S, R, T> model = getModel();
 
         int pointer = 0;
 
-        for (final R next : _params.getUniqueRegressors())
-        {
+        for (final R next : _params.getUniqueRegressors()) {
             _rawRegressors[pointer++] = allRegressors_.apply(next.ordinal());
         }
 
@@ -86,27 +81,22 @@ public class ItemClassificationModel<S extends ItemStatus<S>, R extends ItemRegr
     }
 
     @Override
-    public ItemClassificationModel<S, R, T> copy(ParamMap arg0)
-    {
+    public ItemClassificationModel<S, R, T> copy(ParamMap arg0) {
         //I'm really not sure what this is supposed to accomplish.
         return this;
     }
 
     @Override
-    public String uid()
-    {
+    public String uid() {
         return _uid;
     }
 
-    public final ItemParameters<S, R, T> getParams()
-    {
+    public final ItemParameters<S, R, T> getParams() {
         return _params;
     }
 
-    private ItemModel<S, R, T> getModel()
-    {
-        if (null == _model)
-        {
+    private ItemModel<S, R, T> getModel() {
+        if (null == _model) {
             _model = new ItemModel<>(_params);
             _rawRegressors = new double[_params.getUniqueRegressors().size()];
         }

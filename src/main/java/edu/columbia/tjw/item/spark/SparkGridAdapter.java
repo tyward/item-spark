@@ -31,16 +31,12 @@ public class SparkGridAdapter<S extends ItemStatus<S>, R extends ItemRegressor<R
     private final ItemRegressorReader[] _readers;
 
     public SparkGridAdapter(final Dataset<?> data_, final String labelColumn_,
-            final String featureColumn_, final List<R> regressors_, final S fromStatus_) {
+            final String featureColumn_, final List<R> regressors_, final S fromStatus_, final R intercept_) {
         _fromStatus = fromStatus_;
         final int rowCount = (int) data_.count();
         final int regCount = regressors_.size();
 
-        if (regCount < 1) {
-            throw new IllegalStateException("Regressor count must be positive.");
-        }
-
-        _regFamily = regressors_.get(0).getFamily();
+        _regFamily = intercept_.getFamily();
         _readers = new ItemRegressorReader[_regFamily.size()];
 
         final Iterator<Row> rowForm = (Iterator<Row>) data_.toLocalIterator();
@@ -63,6 +59,7 @@ public class SparkGridAdapter<S extends ItemStatus<S>, R extends ItemRegressor<R
             }
 
             _toLabels[pointer] = label.intValue();
+            pointer++;
         }
 
         for (int i = 0; i < regCount; i++) {
@@ -70,6 +67,8 @@ public class SparkGridAdapter<S extends ItemStatus<S>, R extends ItemRegressor<R
             final RawReader wrapped = new RawReader(transposed[i]);
             _readers[reg.ordinal()] = wrapped;
         }
+
+        _readers[intercept_.ordinal()] = new InterceptReader(rowCount);
     }
 
     @Override
@@ -110,6 +109,30 @@ public class SparkGridAdapter<S extends ItemStatus<S>, R extends ItemRegressor<R
     @Override
     public EnumFamily<R> getRegressorFamily() {
         return _regFamily;
+    }
+
+    private static final class InterceptReader implements ItemRegressorReader {
+
+        private final int _size;
+
+        public InterceptReader(final int size_) {
+            _size = size_;
+        }
+
+        @Override
+        public double asDouble(int index_) {
+            if (index_ < 0 || index_ >= _size) {
+                throw new ArrayIndexOutOfBoundsException("Index out of bounds[0, " + _size + "): " + index_);
+            }
+
+            return 1.0;
+        }
+
+        @Override
+        public int size() {
+            return _size;
+        }
+
     }
 
     private static final class RawReader implements ItemRegressorReader {

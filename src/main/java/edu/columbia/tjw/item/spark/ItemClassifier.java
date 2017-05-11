@@ -60,13 +60,15 @@ public class ItemClassifier<S extends ItemStatus<S>, R extends ItemRegressor<R>,
     @Override
     public ItemClassificationModel<S, R, T> train(final Dataset<?> data_) {
         //This is pretty filthy, but it will get the job done. Though, only locally. 
-        final String featureCol = this.getFeaturesCol();
-        final String labelCol = this.getLabelCol();
+        //final String featureCol = this.getFeaturesCol();
+        //final String labelCol = this.getLabelCol();
+        final String labelCol = "label";
+        final String featureCol = "features";
 
         final ItemStatusGrid<S, R> data = new SparkGridAdapter(data_, labelCol, featureCol,
-                this._settings.getRegressors(), this._settings.getFromStatus());
+                this._settings.getRegressors(), this._settings.getFromStatus(), _settings.getIntercept());
 
-        final ItemFitter<S, R, T> fitter = new ItemFitter<>(_settings.getFactory(), 
+        final ItemFitter<S, R, T> fitter = new ItemFitter<>(_settings.getFactory(),
                 _settings.getIntercept(), _settings.getFromStatus(), data);
 
         final int maxParams = _settings.getMaxParamCount();
