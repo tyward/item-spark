@@ -11,6 +11,7 @@ import edu.columbia.tjw.item.ItemRegressor;
 import edu.columbia.tjw.item.ItemSettings;
 import edu.columbia.tjw.item.ItemStatus;
 import edu.columbia.tjw.item.base.StandardCurveFactory;
+import edu.columbia.tjw.item.base.StandardCurveType;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -27,22 +28,24 @@ import java.util.TreeSet;
  * @param <R>
  * @param <T>
  */
-public final class ItemClassifierSettings<S extends ItemStatus<S>, R extends ItemRegressor<R>, T extends ItemCurveType<T>> implements Serializable
+public final class ItemClassifierSettings<S extends ItemStatus<S>, R extends ItemRegressor<R>> implements Serializable
 {
     private static final long serialVersionUID = 0xc6964a7d0bbd3449L;
 
     public ItemSettings _settings;
     private final S _fromStatus;
     private final R _intercept;
-    private final ItemCurveFactory<R, T> _factory;
+    private final ItemCurveFactory<R, StandardCurveType> _factory;
     private final int _maxParamCount;
     private final List<R> _regressors;
     private final SortedSet<R> _curveRegressors;
     private final Set<R> _nonCurveRegressors;
 
     /**
-     * Use this constructor unless you really know what you're doing.
+     * Use this to construct settings unless you really know what you're doing.
      *
+     *
+     * @param settings_ Item settings to use, can be null.
      * @param intercept_ Which regressor will be the intercept. You don't need
      * to specify this in the data, it will be assumed to be 1.0 always.
      * @param status_ Which status are we projecting from (only interesting for
@@ -54,16 +57,7 @@ public final class ItemClassifierSettings<S extends ItemStatus<S>, R extends Ite
      * @param curveRegressors_ The regressors that can support curves (i.e. they
      * are not binary flags), order doesn't matter for these.
      */
-    public ItemClassifierSettings(final R intercept_, final S status_,
-            final int maxParamCount_, final List<R> regressors_, final Set<R> curveRegressors_)
-    {
-        this(null, new StandardCurveFactory<>(), intercept_, status_, maxParamCount_, regressors_, curveRegressors_);
-    }
-
-    /**
-     * See above.
-     */
-    public ItemClassifierSettings(final ItemSettings settings_, final ItemCurveFactory<R, T> factory_, final R intercept_,
+    public ItemClassifierSettings(final ItemSettings settings_, final R intercept_,
             final S status_, final int maxParamCount_, final List<R> regressors_, final Set<R> curveRegressors_)
     {
         if (null == settings_)
@@ -75,7 +69,7 @@ public final class ItemClassifierSettings<S extends ItemStatus<S>, R extends Ite
             _settings = settings_;
         }
 
-        _factory = factory_;
+        _factory = new StandardCurveFactory<>();
         _fromStatus = status_;
         _intercept = intercept_;
         _maxParamCount = maxParamCount_;
@@ -119,7 +113,7 @@ public final class ItemClassifierSettings<S extends ItemStatus<S>, R extends Ite
         return _intercept;
     }
 
-    public ItemCurveFactory<R, T> getFactory()
+    public ItemCurveFactory<R, StandardCurveType> getFactory()
     {
         return _factory;
     }

@@ -19,11 +19,11 @@
  */
 package edu.columbia.tjw.item.spark;
 
-import edu.columbia.tjw.item.ItemCurveType;
 import edu.columbia.tjw.item.ItemModel;
 import edu.columbia.tjw.item.ItemParameters;
 import edu.columbia.tjw.item.ItemRegressor;
 import edu.columbia.tjw.item.ItemStatus;
+import edu.columbia.tjw.item.base.StandardCurveType;
 import edu.columbia.tjw.item.util.random.RandomTool;
 import org.apache.spark.ml.classification.ProbabilisticClassificationModel;
 import org.apache.spark.ml.linalg.DenseVector;
@@ -37,18 +37,18 @@ import org.apache.spark.ml.param.ParamMap;
  * @param <R>
  * @param <T>
  */
-public class ItemClassificationModel<S extends ItemStatus<S>, R extends ItemRegressor<R>, T extends ItemCurveType<T>> extends ProbabilisticClassificationModel<Vector, ItemClassificationModel<S, R, T>>
+public class ItemClassificationModel<S extends ItemStatus<S>, R extends ItemRegressor<R>> extends ProbabilisticClassificationModel<Vector, ItemClassificationModel<S, R>>
 {
 
     private static final long serialVersionUID = 0x8c7eb061e0d2980aL;
 
-    private final ItemParameters<S, R, T> _params;
+    private final ItemParameters<S, R, StandardCurveType> _params;
     private String _uid;
 
-    private transient ItemModel<S, R, T> _model;
+    private transient ItemModel<S, R, StandardCurveType> _model;
     private transient double[] _rawRegressors;
 
-    public ItemClassificationModel(final ItemParameters<S, R, T> params_)
+    public ItemClassificationModel(final ItemParameters<S, R, StandardCurveType> params_)
     {
         _params = params_;
     }
@@ -69,7 +69,7 @@ public class ItemClassificationModel<S extends ItemStatus<S>, R extends ItemRegr
     @Override
     public Vector predictRaw(final Vector allRegressors_)
     {
-        final ItemModel<S, R, T> model = getModel();
+        final ItemModel<S, R, StandardCurveType> model = getModel();
 
         int pointer = 0;
 
@@ -86,7 +86,7 @@ public class ItemClassificationModel<S extends ItemStatus<S>, R extends ItemRegr
     }
 
     @Override
-    public ItemClassificationModel<S, R, T> copy(ParamMap arg0)
+    public ItemClassificationModel<S, R> copy(ParamMap arg0)
     {
         return defaultCopy(arg0);
     }
@@ -103,12 +103,12 @@ public class ItemClassificationModel<S extends ItemStatus<S>, R extends ItemRegr
         return _uid;
     }
 
-    public final ItemParameters<S, R, T> getParams()
+    public final ItemParameters<S, R, StandardCurveType> getParams()
     {
         return _params;
     }
 
-    private ItemModel<S, R, T> getModel()
+    private ItemModel<S, R, StandardCurveType> getModel()
     {
         if (null == _model)
         {
