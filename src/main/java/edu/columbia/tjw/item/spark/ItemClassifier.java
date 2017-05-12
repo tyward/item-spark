@@ -47,20 +47,16 @@ public class ItemClassifier<S extends ItemStatus<S>, R extends ItemRegressor<R>>
 
     private static final long serialVersionUID = 0x7cc313e747f68becL;
 
-    private ItemClassifierSettings<S, R> _settings;
+    private final ItemClassifierSettings<S, R> _settings;
+    private final ItemParameters<S, R, StandardCurveType> _startingParams;
     private String _uid;
 
     public ItemClassifier(final ItemClassifierSettings<S, R> settings_)
     {
-        if (null == settings_)
-        {
-            throw new NullPointerException("Settings cannot be null.");
-        }
-
-        _settings = settings_;
+        this(settings_, null);
     }
 
-    private void updateSettings(ItemClassifierSettings<S, R> settings_)
+    public ItemClassifier(final ItemClassifierSettings<S, R> settings_, final ItemParameters<S, R, StandardCurveType> startingParams_)
     {
         if (null == settings_)
         {
@@ -68,6 +64,7 @@ public class ItemClassifier<S extends ItemStatus<S>, R extends ItemRegressor<R>>
         }
 
         _settings = settings_;
+        _startingParams = startingParams_;
     }
 
     @Override
@@ -88,6 +85,19 @@ public class ItemClassifier<S extends ItemStatus<S>, R extends ItemRegressor<R>>
 
         final ItemFitter<S, R, StandardCurveType> fitter = new ItemFitter<>(_settings.getFactory(),
                 _settings.getIntercept(), _settings.getFromStatus(), data);
+
+        if (null != _startingParams)
+        {
+            try
+            {
+                fitter.pushParameters("InitialParams", _startingParams);
+            }
+            catch (final ConvergenceException e)
+            {
+                //TODO: Fix this, this exception is actually not possible here.
+                throw new RuntimeException(e);
+            }
+        }
 
         final int maxParams = _settings.getMaxParamCount();
 
