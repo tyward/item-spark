@@ -34,8 +34,8 @@ import org.apache.spark.ml.param.ParamMap;
 /**
  *
  * @author tyler
- * @param <S>
- * @param <R>
+ * @param <S> Status being modeled
+ * @param <R> Type of regressors used
  */
 public class ItemClassificationModel<S extends ItemStatus<S>, R extends ItemRegressor<R>> extends ProbabilisticClassificationModel<Vector, ItemClassificationModel<S, R>>
 {

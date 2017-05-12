@@ -19,7 +19,6 @@
  */
 package edu.columbia.tjw.item.spark;
 
-import edu.columbia.tjw.item.ItemCurveType;
 import edu.columbia.tjw.item.ItemParameters;
 import edu.columbia.tjw.item.ItemRegressor;
 import edu.columbia.tjw.item.ItemStatus;
@@ -36,9 +35,8 @@ import org.apache.spark.sql.Dataset;
 /**
  *
  * @author tyler
- * @param <S>
- * @param <R>
- * @param <T>
+ * @param <S> Status being modeled
+ * @param <R> Regressor type used
  */
 public class ItemClassifier<S extends ItemStatus<S>, R extends ItemRegressor<R>>
         extends ProbabilisticClassifier<Vector, ItemClassifier<S, R>, ItemClassificationModel<S, R>>
