@@ -27,10 +27,6 @@ import edu.columbia.tjw.item.data.ItemStatusGrid;
 import edu.columbia.tjw.item.fit.ItemFitter;
 import edu.columbia.tjw.item.optimize.ConvergenceException;
 import edu.columbia.tjw.item.util.random.RandomTool;
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
 import org.apache.spark.ml.classification.ProbabilisticClassifier;
 import org.apache.spark.ml.linalg.Vector;
 import org.apache.spark.ml.param.ParamMap;
@@ -88,7 +84,7 @@ public class ItemClassifier<S extends ItemStatus<S>, R extends ItemRegressor<R>,
         final String labelCol = "label";
         final String featureCol = "features";
 
-        final ItemStatusGrid<S, R> data = new SparkGridAdapter(data_, labelCol, featureCol,
+        final ItemStatusGrid<S, R> data = new SparkGridAdapter<>(data_, labelCol, featureCol,
                 this._settings.getRegressors(), this._settings.getFromStatus(), _settings.getIntercept());
 
         final ItemFitter<S, R, T> fitter = new ItemFitter<>(_settings.getFactory(),
@@ -151,36 +147,6 @@ public class ItemClassifier<S extends ItemStatus<S>, R extends ItemRegressor<R>,
         final ItemClassificationModel<S, R, T> classificationModel = new ItemClassificationModel<>(params);
 
         return classificationModel;
-    }
-
-    @Override
-    public ItemClassifier<S, R, T> clone()
-    {
-        try
-        {
-            //Force this to be a deep clone by serializing and deserializing the object. 
-            final ByteArrayOutputStream bOut = new ByteArrayOutputStream();
-            final ObjectOutputStream oOut = new ObjectOutputStream(bOut);
-            oOut.writeObject(this);
-
-            final ByteArrayInputStream bIn = new ByteArrayInputStream(bOut.toByteArray());
-            final ObjectInputStream oIn = new ObjectInputStream(bIn);
-
-            final ItemClassifier<S, R, T> output = (ItemClassifier<S, R, T>) oIn.readObject();
-            return output;
-        }
-        catch (final Exception e)
-        {
-            throw new RuntimeException(e);
-        }
-
-//        try {
-//        final ItemClassifier<S, R, T> output = (ItemClassifier<S, R, T>) super.clone();
-//        return output;
-//        }
-//        catch(final CloneNotSupportedException e) {
-//            
-//        }
     }
 
     @Override
