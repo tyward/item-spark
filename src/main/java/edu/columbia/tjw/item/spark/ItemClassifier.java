@@ -143,7 +143,7 @@ public class ItemClassifier<S extends ItemStatus<S>, R extends ItemRegressor<R>>
 
         final ItemParameters<S, R, StandardCurveType> params = fitter.getBestParameters();
 
-        final ItemClassificationModel<S, R> classificationModel = new ItemClassificationModel<>(params);
+        final ItemClassificationModel<S, R> classificationModel = new ItemClassificationModel<>(params, _settings.getRegressors());
 
         return classificationModel;
     }

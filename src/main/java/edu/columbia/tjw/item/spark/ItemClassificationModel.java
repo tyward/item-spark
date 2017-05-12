@@ -25,6 +25,7 @@ import edu.columbia.tjw.item.ItemRegressor;
 import edu.columbia.tjw.item.ItemStatus;
 import edu.columbia.tjw.item.base.StandardCurveType;
 import edu.columbia.tjw.item.util.random.RandomTool;
+import java.util.List;
 import org.apache.spark.ml.classification.ProbabilisticClassificationModel;
 import org.apache.spark.ml.linalg.DenseVector;
 import org.apache.spark.ml.linalg.Vector;
@@ -35,22 +36,48 @@ import org.apache.spark.ml.param.ParamMap;
  * @author tyler
  * @param <S>
  * @param <R>
- * @param <T>
  */
 public class ItemClassificationModel<S extends ItemStatus<S>, R extends ItemRegressor<R>> extends ProbabilisticClassificationModel<Vector, ItemClassificationModel<S, R>>
 {
-
     private static final long serialVersionUID = 0x8c7eb061e0d2980aL;
 
     private final ItemParameters<S, R, StandardCurveType> _params;
+    private final int[] _offsetMap;
     private String _uid;
 
     private transient ItemModel<S, R, StandardCurveType> _model;
     private transient double[] _rawRegressors;
 
-    public ItemClassificationModel(final ItemParameters<S, R, StandardCurveType> params_)
+    public ItemClassificationModel(final ItemParameters<S, R, StandardCurveType> params_, final List<R> fieldOrdering_)
     {
         _params = params_;
+
+        final List<R> paramFields = params_.getUniqueRegressors();
+
+        _offsetMap = new int[paramFields.size()];
+
+        //This is the intercept, always. 
+        _offsetMap[0] = -1;
+
+        for (int i = 1; i < paramFields.size(); i++)
+        {
+            final R next = paramFields.get(i);
+
+            if (next == _params.getEntryRegressor(_params.getInterceptIndex(), 0))
+            {
+                _offsetMap[i] = -1;
+                continue;
+            }
+
+            final int index = fieldOrdering_.indexOf(next);
+
+            if (-1 == index)
+            {
+                throw new IllegalArgumentException("Missing regressors from fields.");
+            }
+
+            _offsetMap[i] = index;
+        }
     }
 
     @Override
@@ -71,17 +98,22 @@ public class ItemClassificationModel<S extends ItemStatus<S>, R extends ItemRegr
     {
         final ItemModel<S, R, StandardCurveType> model = getModel();
 
-        int pointer = 0;
-
-        for (final R next : _params.getUniqueRegressors())
+        for (int i = 0; i < _params.getUniqueRegressors().size(); i++)
         {
-            _rawRegressors[pointer++] = allRegressors_.apply(next.ordinal());
+            final int fieldIndex = _offsetMap[i];
+
+            if (-1 == fieldIndex)
+            {
+                _rawRegressors[i] = 1.0;
+            }
+            else
+            {
+                _rawRegressors[i] = allRegressors_.apply(fieldIndex);
+            }
         }
 
         final double[] probabilities = new double[_params.getStatus().getReachableCount()];
-
         model.transitionProbability(_rawRegressors, probabilities);
-
         return new DenseVector(probabilities);
     }
 
