@@ -15,49 +15,47 @@
  */
 package edu.columbia.tjw.item.spark.base;
 
-import edu.columbia.tjw.item.ItemRegressor;
+import edu.columbia.tjw.item.ItemStatus;
+import static edu.columbia.tjw.item.spark.base.BinaryStatus.FAMILY;
 import edu.columbia.tjw.item.util.EnumFamily;
 import edu.columbia.tjw.item.util.HashUtil;
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
+import java.util.List;
 
 /**
- * This is a simple regressor. Ideally, it's slightly cleaner to make your own
- * class for each distinct set of regressors, and that class should be an enum,
- * as that will prevent various errors related to regressor redefinition.
- * However, for simplicity, this will make a regressor set from a collection of
- * strings. Ordering of the collection matters (it determines ordering of the
- * results).
- *
- * One of these regressors (of your choice) will be used as an intercept term
- * later on in the modeling process, so be sure to add such a term if one isn't
- * already present.
  *
  * @author tyler
  */
-public final class SimpleRegressor implements ItemRegressor<SimpleRegressor>
+public class SimpleStatus implements ItemStatus<SimpleStatus>
 {
-    private static final int CLASS_HASH = HashUtil.startHash(SimpleRegressor.class);
+    private static final int CLASS_HASH = HashUtil.startHash(SimpleStatus.class);
     private static final long serialVersionUID = 0x8787a642d5713061L;
 
     private final SimpleStringEnum _base;
-    private EnumFamily<SimpleRegressor> _family;
+    private final List<SimpleStatus> _indistinguishable;
 
-    public static EnumFamily<SimpleRegressor> generateFamily(final Collection<String> regressorNames_)
+    //These two must be filled out after construction.
+    private EnumFamily<SimpleStatus> _family;
+    private List<SimpleStatus> _reachable = null;
+
+    public static EnumFamily<SimpleStatus> generateFamily(final Collection<String> regressorNames_)
     {
         final EnumFamily<SimpleStringEnum> baseFamily = SimpleStringEnum.generateFamily(regressorNames_);
 
-        final SimpleRegressor[] regs = new SimpleRegressor[baseFamily.size()];
+        final SimpleStatus[] regs = new SimpleStatus[baseFamily.size()];
         int pointer = 0;
 
         for (final SimpleStringEnum next : baseFamily.getMembers())
         {
-            final SimpleRegressor nextReg = new SimpleRegressor(next);
+            final SimpleStatus nextReg = new SimpleStatus(next);
             regs[pointer++] = nextReg;
         }
 
-        final EnumFamily<SimpleRegressor> family = new EnumFamily<>(regs, false);
+        final EnumFamily<SimpleStatus> family = new EnumFamily<>(regs, false);
 
-        for (final SimpleRegressor reg : regs)
+        for (final SimpleStatus reg : regs)
         {
             reg.setFamily(family);
         }
@@ -65,12 +63,13 @@ public final class SimpleRegressor implements ItemRegressor<SimpleRegressor>
         return family;
     }
 
-    private SimpleRegressor(final SimpleStringEnum base_)
+    private SimpleStatus(final SimpleStringEnum base_)
     {
         _base = base_;
+        _indistinguishable = Collections.singletonList(this);
     }
 
-    private void setFamily(final EnumFamily<SimpleRegressor> family_)
+    private void setFamily(final EnumFamily<SimpleStatus> family_)
     {
         _family = family_;
     }
@@ -88,7 +87,7 @@ public final class SimpleRegressor implements ItemRegressor<SimpleRegressor>
     }
 
     @Override
-    public EnumFamily<SimpleRegressor> getFamily()
+    public EnumFamily<SimpleStatus> getFamily()
     {
         return _family;
     }
@@ -115,13 +114,13 @@ public final class SimpleRegressor implements ItemRegressor<SimpleRegressor>
             return false;
         }
 
-        final SimpleRegressor that = (SimpleRegressor) other_;
+        final SimpleStatus that = (SimpleStatus) other_;
 
         return this._base.equals(that._base);
     }
 
     @Override
-    public int compareTo(final SimpleRegressor that_)
+    public int compareTo(final SimpleStatus that_)
     {
         if (this == that_)
         {
@@ -135,4 +134,37 @@ public final class SimpleRegressor implements ItemRegressor<SimpleRegressor>
         return this._base.compareTo(that_._base);
     }
 
+    /**
+     * Assumes that each status is reachable from every other status.
+     *
+     * @return
+     */
+    @Override
+    public int getReachableCount()
+    {
+        return _family.size();
+    }
+
+    /**
+     * Assumes that there are no indistinguishable states, every status can be
+     * identified in the data set.
+     *
+     * @return
+     */
+    @Override
+    public List<SimpleStatus> getIndistinguishable()
+    {
+        return _indistinguishable;
+    }
+
+    @Override
+    public List<SimpleStatus> getReachable()
+    {
+        if (null == _reachable)
+        {
+            _reachable = Collections.unmodifiableList(new ArrayList<>(_family.getMembers()));
+        }
+
+        return _reachable;
+    }
 }
