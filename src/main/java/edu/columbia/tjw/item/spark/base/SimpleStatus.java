@@ -16,7 +16,6 @@
 package edu.columbia.tjw.item.spark.base;
 
 import edu.columbia.tjw.item.ItemStatus;
-import static edu.columbia.tjw.item.spark.base.BinaryStatus.FAMILY;
 import edu.columbia.tjw.item.util.EnumFamily;
 import edu.columbia.tjw.item.util.HashUtil;
 import java.util.ArrayList;
