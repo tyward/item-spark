@@ -2,8 +2,8 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
     <groupId>edu.columbia.tjw</groupId>
-    <artifactId>item</artifactId>
-    <version>spark-1.2.0</version>
+    <artifactId>item-spark</artifactId>
+    <version>1.2.0</version>
     <packaging>jar</packaging>
     <name>ITEM Spark Adapter</name>
     <description>A statistical model for automatic fitting against large data sets.</description>
@@ -64,14 +64,14 @@
     </build>
     <dependencies>
         <dependency>
-            <groupId>edu.columbia.tjw</groupId>
-            <artifactId>item</artifactId>
-            <version>1.2.0</version>
-        </dependency>
-        <dependency>
             <groupId>org.apache.spark</groupId>
             <artifactId>spark-mllib_2.11</artifactId>
             <version>2.1.0</version>
+        </dependency>
+        <dependency>
+            <groupId>edu.columbia.tjw</groupId>
+            <artifactId>item</artifactId>
+            <version>1.2.0</version>
         </dependency>
     </dependencies>
 </project>
