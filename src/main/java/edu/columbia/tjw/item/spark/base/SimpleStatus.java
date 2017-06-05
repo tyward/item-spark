@@ -25,6 +25,10 @@ import java.util.List;
 
 /**
  *
+ * This is a simple fully connected status family generated from a set of names.
+ *
+ *
+ *
  * @author tyler
  */
 public class SimpleStatus implements ItemStatus<SimpleStatus>
