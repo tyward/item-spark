@@ -19,6 +19,7 @@
  */
 package edu.columbia.tjw.item.spark;
 
+import edu.columbia.tjw.item.base.RawReader;
 import edu.columbia.tjw.item.ItemRegressor;
 import edu.columbia.tjw.item.ItemRegressorReader;
 import edu.columbia.tjw.item.ItemStatus;
@@ -167,28 +168,5 @@ public class SparkGridAdapter<S extends ItemStatus<S>, R extends ItemRegressor<R
 
     }
 
-    private static final class RawReader implements ItemRegressorReader
-    {
-
-        private final double[] _data;
-
-        public RawReader(final double[] data_)
-        {
-            _data = data_;
-        }
-
-        @Override
-        public double asDouble(int index_)
-        {
-            return _data[index_];
-        }
-
-        @Override
-        public int size()
-        {
-            return _data.length;
-        }
-
-    }
 
 }

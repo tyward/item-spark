@@ -113,17 +113,17 @@ public class ItemClassifier<S extends ItemStatus<S>, R extends ItemRegressor<R>>
                 }
 
                 //Starts out with vacuous intercepts, correct those first. 
-                fitter.fitCoefficients(null);
+                fitter.fitCoefficients();
 
                 //Now add the flags, recalibrate beta values.
-                fitter.addCoefficients(null, _settings.getNonCurveRegressors());
+                fitter.addCoefficients(_settings.getNonCurveRegressors());
 
                 final int curveAvailable = maxParams - fitter.getBestParameters().getEffectiveParamCount();
 
                 if (curveAvailable > 3)
                 {
                     //Now expand the model by adding curves.
-                    fitter.expandModel(_settings.getCurveRegressors(), null, curveAvailable);
+                    fitter.expandModel(_settings.getCurveRegressors(), curveAvailable);
                 }
                 else
                 {
@@ -134,7 +134,7 @@ public class ItemClassifier<S extends ItemStatus<S>, R extends ItemRegressor<R>>
                 fitter.calibrateCurves();
 
                 //Refit coefficients.
-                fitter.fitCoefficients(null);
+                fitter.fitCoefficients();
 
                 //Trim anything rendered irrelevant by later passes.
                 fitter.trim(true);
