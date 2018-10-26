@@ -27,6 +27,8 @@ import edu.columbia.tjw.item.data.ItemStatusGrid;
 import edu.columbia.tjw.item.util.EnumFamily;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Set;
+
 import org.apache.spark.ml.linalg.Vector;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
@@ -116,9 +118,8 @@ public class SparkGridAdapter<S extends ItemStatus<S>, R extends ItemRegressor<R
     }
 
     @Override
-    public boolean hasRegressorReader(R field_)
-    {
-        return (null != _readers[field_.ordinal()]);
+    public Set<R> getAvailableRegressors() {
+        return _regFamily.getMembers();
     }
 
     @Override
