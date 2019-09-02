@@ -23,6 +23,8 @@ import edu.columbia.tjw.item.ItemModel;
 import edu.columbia.tjw.item.ItemParameters;
 import edu.columbia.tjw.item.ItemRegressor;
 import edu.columbia.tjw.item.ItemStatus;
+import edu.columbia.tjw.item.base.SimpleRegressor;
+import edu.columbia.tjw.item.base.SimpleStatus;
 import edu.columbia.tjw.item.base.StandardCurveType;
 import edu.columbia.tjw.item.util.random.RandomTool;
 import java.util.List;
@@ -34,25 +36,23 @@ import org.apache.spark.ml.param.ParamMap;
 /**
  *
  * @author tyler
- * @param <S> Status being modeled
- * @param <R> Type of regressors used
  */
-public class ItemClassificationModel<S extends ItemStatus<S>, R extends ItemRegressor<R>> extends ProbabilisticClassificationModel<Vector, ItemClassificationModel<S, R>>
+public class ItemClassificationModel extends ProbabilisticClassificationModel<Vector, ItemClassificationModel>
 {
     private static final long serialVersionUID = 0x8c7eb061e0d2980aL;
 
-    private final ItemParameters<S, R, StandardCurveType> _params;
+    private final ItemParameters<SimpleStatus, SimpleRegressor, StandardCurveType> _params;
     private final int[] _offsetMap;
     private String _uid;
 
-    private transient ItemModel<S, R, StandardCurveType> _model;
+    private transient ItemModel<SimpleStatus, SimpleRegressor, StandardCurveType> _model;
     private transient double[] _rawRegressors;
 
-    public ItemClassificationModel(final ItemParameters<S, R, StandardCurveType> params_, final List<R> fieldOrdering_)
+    public ItemClassificationModel(final ItemParameters<SimpleStatus, SimpleRegressor, StandardCurveType> params_, final List<SimpleRegressor> fieldOrdering_)
     {
         _params = params_;
 
-        final List<R> paramFields = params_.getUniqueRegressors();
+        final List<SimpleRegressor> paramFields = params_.getUniqueRegressors();
 
         _offsetMap = new int[paramFields.size()];
 
@@ -61,7 +61,7 @@ public class ItemClassificationModel<S extends ItemStatus<S>, R extends ItemRegr
 
         for (int i = 1; i < paramFields.size(); i++)
         {
-            final R next = paramFields.get(i);
+            final SimpleRegressor next = paramFields.get(i);
 
             if (next == _params.getEntryRegressor(_params.getInterceptIndex(), 0))
             {
@@ -96,7 +96,7 @@ public class ItemClassificationModel<S extends ItemStatus<S>, R extends ItemRegr
     @Override
     public Vector predictRaw(final Vector allRegressors_)
     {
-        final ItemModel<S, R, StandardCurveType> model = getModel();
+        final ItemModel<SimpleStatus, SimpleRegressor, StandardCurveType> model = getModel();
 
         for (int i = 0; i < _params.getUniqueRegressors().size(); i++)
         {
@@ -118,7 +118,7 @@ public class ItemClassificationModel<S extends ItemStatus<S>, R extends ItemRegr
     }
 
     @Override
-    public ItemClassificationModel<S, R> copy(ParamMap arg0)
+    public ItemClassificationModel copy(ParamMap arg0)
     {
         return defaultCopy(arg0);
     }
@@ -135,12 +135,12 @@ public class ItemClassificationModel<S extends ItemStatus<S>, R extends ItemRegr
         return _uid;
     }
 
-    public final ItemParameters<S, R, StandardCurveType> getParams()
+    public final ItemParameters<SimpleStatus, SimpleRegressor, StandardCurveType> getParams()
     {
         return _params;
     }
 
-    private ItemModel<S, R, StandardCurveType> getModel()
+    private ItemModel<SimpleStatus, SimpleRegressor, StandardCurveType> getModel()
     {
         if (null == _model)
         {

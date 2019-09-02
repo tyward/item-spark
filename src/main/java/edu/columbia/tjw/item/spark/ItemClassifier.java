@@ -22,6 +22,8 @@ package edu.columbia.tjw.item.spark;
 import edu.columbia.tjw.item.ItemParameters;
 import edu.columbia.tjw.item.ItemRegressor;
 import edu.columbia.tjw.item.ItemStatus;
+import edu.columbia.tjw.item.base.SimpleStatus;
+import edu.columbia.tjw.item.base.SimpleRegressor;
 import edu.columbia.tjw.item.base.StandardCurveType;
 import edu.columbia.tjw.item.data.ItemStatusGrid;
 import edu.columbia.tjw.item.fit.ItemFitter;
@@ -35,26 +37,23 @@ import org.apache.spark.sql.Dataset;
 /**
  *
  * @author tyler
- * @param <S> Status being modeled
- * @param <R> Regressor type used
  */
-public class ItemClassifier<S extends ItemStatus<S>, R extends ItemRegressor<R>>
-        extends ProbabilisticClassifier<Vector, ItemClassifier<S, R>, ItemClassificationModel<S, R>>
+public class ItemClassifier
+        extends ProbabilisticClassifier<Vector, ItemClassifier, ItemClassificationModel>
         implements Cloneable
 {
-
     private static final long serialVersionUID = 0x7cc313e747f68becL;
 
-    private final ItemClassifierSettings<S, R> _settings;
-    private final ItemParameters<S, R, StandardCurveType> _startingParams;
+    private final ItemClassifierSettings<SimpleStatus, SimpleRegressor> _settings;
+    private final ItemParameters<SimpleStatus, SimpleRegressor, StandardCurveType> _startingParams;
     private String _uid;
 
-    public ItemClassifier(final ItemClassifierSettings<S, R> settings_)
+    public ItemClassifier(final ItemClassifierSettings<SimpleStatus, SimpleRegressor> settings_)
     {
         this(settings_, null);
     }
 
-    public ItemClassifier(final ItemClassifierSettings<S, R> settings_, final ItemParameters<S, R, StandardCurveType> startingParams_)
+    public ItemClassifier(final ItemClassifierSettings<SimpleStatus, SimpleRegressor> settings_, final ItemParameters<SimpleStatus, SimpleRegressor, StandardCurveType> startingParams_)
     {
         if (null == settings_)
         {
@@ -66,22 +65,22 @@ public class ItemClassifier<S extends ItemStatus<S>, R extends ItemRegressor<R>>
     }
 
     @Override
-    public ItemClassifier<S, R> copy(ParamMap paramMap_)
+    public ItemClassifier copy(ParamMap paramMap_)
     {
         return this.defaultCopy(paramMap_);
     }
 
     @Override
-    public ItemClassificationModel<S, R> train(final Dataset<?> data_)
+    public ItemClassificationModel train(final Dataset<?> data_)
     {
         //This is pretty filthy, but it will get the job done. Though, only locally. 
         final String featureCol = this.getFeaturesCol();
         final String labelCol = this.getLabelCol();
 
-        final ItemStatusGrid<S, R> data = new SparkGridAdapter<>(data_, labelCol, featureCol,
+        final ItemStatusGrid<SimpleStatus, SimpleRegressor> data = new SparkGridAdapter<>(data_, labelCol, featureCol,
                 this._settings.getRegressors(), this._settings.getFromStatus(), _settings.getIntercept());
 
-        final ItemFitter<S, R, StandardCurveType> fitter = new ItemFitter<>(_settings.getFactory(),
+        final ItemFitter<SimpleStatus, SimpleRegressor, StandardCurveType> fitter = new ItemFitter<>(_settings.getFactory(),
                 _settings.getIntercept(), _settings.getFromStatus(), data);
 
         if (null != _startingParams)
@@ -149,9 +148,9 @@ public class ItemClassifier<S extends ItemStatus<S>, R extends ItemRegressor<R>>
             throw new RuntimeException(e);
         }
 
-        final ItemParameters<S, R, StandardCurveType> params = fitter.getBestParameters();
+        final ItemParameters<SimpleStatus, SimpleRegressor, StandardCurveType> params = fitter.getBestParameters();
 
-        final ItemClassificationModel<S, R> classificationModel = new ItemClassificationModel<>(params, _settings.getRegressors());
+        final ItemClassificationModel classificationModel = new ItemClassificationModel(params, _settings.getRegressors());
 
         return classificationModel;
     }
