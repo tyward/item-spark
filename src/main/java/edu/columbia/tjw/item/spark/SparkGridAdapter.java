@@ -23,6 +23,8 @@ import edu.columbia.tjw.item.base.RawReader;
 import edu.columbia.tjw.item.ItemRegressor;
 import edu.columbia.tjw.item.ItemRegressorReader;
 import edu.columbia.tjw.item.ItemStatus;
+import edu.columbia.tjw.item.base.SimpleRegressor;
+import edu.columbia.tjw.item.base.SimpleStatus;
 import edu.columbia.tjw.item.data.ItemStatusGrid;
 import edu.columbia.tjw.item.util.EnumFamily;
 import java.util.Iterator;
@@ -36,19 +38,17 @@ import org.apache.spark.sql.Row;
 /**
  *
  * @author tyler
- * @param <S>
- * @param <R>
  */
-public class SparkGridAdapter<S extends ItemStatus<S>, R extends ItemRegressor<R>> implements ItemStatusGrid<S, R>
+public class SparkGridAdapter implements ItemStatusGrid<SimpleStatus, SimpleRegressor>
 {
 
-    private final S _fromStatus;
-    private final EnumFamily<R> _regFamily;
+    private final SimpleStatus _fromStatus;
+    private final EnumFamily<SimpleRegressor> _regFamily;
     private final int[] _toLabels;
     private final ItemRegressorReader[] _readers;
 
     public SparkGridAdapter(final Dataset<?> data_, final String labelColumn_,
-            final String featureColumn_, final List<R> regressors_, final S fromStatus_, final R intercept_)
+            final String featureColumn_, final List<SimpleRegressor> regressors_, final SimpleStatus fromStatus_, final SimpleRegressor intercept_)
     {
         _fromStatus = fromStatus_;
         final int rowCount = (int) data_.count();
@@ -67,7 +67,8 @@ public class SparkGridAdapter<S extends ItemStatus<S>, R extends ItemRegressor<R
         {
             final Row next = rowForm.next();
             final Vector vec = (Vector) next.get(next.fieldIndex(featureColumn_));
-            final Number label = (Number) next.getAs(next.fieldIndex(labelColumn_));
+            final Number numericLabel = (Number) next.getAs(next.fieldIndex(labelColumn_));
+            final String label = Integer.toString(numericLabel.intValue());
 
             if (vec.size() != regCount)
             {
@@ -79,13 +80,19 @@ public class SparkGridAdapter<S extends ItemStatus<S>, R extends ItemRegressor<R
                 transposed[i][pointer] = vec.apply(i);
             }
 
-            _toLabels[pointer] = label.intValue();
+            final SimpleStatus toStatus = _fromStatus.getFamily().getFromName(label);
+
+            if(null == toStatus) {
+                throw new NullPointerException("Unable to find status label: '" + label + "'");
+            }
+
+            _toLabels[pointer] = toStatus.ordinal();
             pointer++;
         }
 
         for (int i = 0; i < regCount; i++)
         {
-            final R reg = regressors_.get(i);
+            final SimpleRegressor reg = regressors_.get(i);
             final RawReader wrapped = new RawReader(transposed[i]);
             _readers[reg.ordinal()] = wrapped;
         }
@@ -94,9 +101,9 @@ public class SparkGridAdapter<S extends ItemStatus<S>, R extends ItemRegressor<R
     }
 
     @Override
-    public EnumFamily<S> getStatusFamily()
+    public EnumFamily<SimpleStatus> getStatusFamily()
     {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+        return _fromStatus.getFamily();
     }
 
     @Override
@@ -118,12 +125,12 @@ public class SparkGridAdapter<S extends ItemStatus<S>, R extends ItemRegressor<R
     }
 
     @Override
-    public Set<R> getAvailableRegressors() {
+    public Set<SimpleRegressor> getAvailableRegressors() {
         return _regFamily.getMembers();
     }
 
     @Override
-    public ItemRegressorReader getRegressorReader(R field_)
+    public ItemRegressorReader getRegressorReader(SimpleRegressor field_)
     {
         return _readers[field_.ordinal()];
     }
@@ -135,7 +142,7 @@ public class SparkGridAdapter<S extends ItemStatus<S>, R extends ItemRegressor<R
     }
 
     @Override
-    public EnumFamily<R> getRegressorFamily()
+    public EnumFamily<SimpleRegressor> getRegressorFamily()
     {
         return _regFamily;
     }
