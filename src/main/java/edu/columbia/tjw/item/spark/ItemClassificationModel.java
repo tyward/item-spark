@@ -12,29 +12,28 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- * 
+ *
  * This code is part of the reference implementation of http://arxiv.org/abs/1409.6075
- * 
+ *
  * This is provided as an example to help in the understanding of the ITEM model system.
  */
 package edu.columbia.tjw.item.spark;
 
 import edu.columbia.tjw.item.ItemModel;
 import edu.columbia.tjw.item.ItemParameters;
-import edu.columbia.tjw.item.ItemRegressor;
-import edu.columbia.tjw.item.ItemStatus;
 import edu.columbia.tjw.item.base.SimpleRegressor;
 import edu.columbia.tjw.item.base.SimpleStatus;
 import edu.columbia.tjw.item.base.StandardCurveType;
 import edu.columbia.tjw.item.util.random.RandomTool;
-import java.util.List;
 import org.apache.spark.ml.classification.ProbabilisticClassificationModel;
 import org.apache.spark.ml.linalg.DenseVector;
 import org.apache.spark.ml.linalg.Vector;
 import org.apache.spark.ml.param.ParamMap;
 
+import java.io.*;
+import java.util.List;
+
 /**
- *
  * @author tyler
  */
 public class ItemClassificationModel extends ProbabilisticClassificationModel<Vector, ItemClassificationModel>
@@ -151,4 +150,31 @@ public class ItemClassificationModel extends ProbabilisticClassificationModel<Ve
         return _model;
     }
 
+    public void save(final String fileName_) throws IOException
+    {
+        try (final FileOutputStream fout = new FileOutputStream(fileName_);
+             final ObjectOutputStream oOut = new ObjectOutputStream(fout);)
+        {
+            oOut.writeObject(this);
+
+
+        }
+    }
+
+
+    public static ItemClassificationModel load(final String filename_) throws IOException
+    {
+        try (final FileInputStream fIn = new FileInputStream(filename_);
+             final ObjectInputStream oIn = new ObjectInputStream(fIn))
+        {
+
+            return (ItemClassificationModel) oIn.readObject();
+        }
+        catch (ClassNotFoundException e)
+        {
+            throw new IOException("Unable to load unknown class.", e);
+        }
+
+
+    }
 }

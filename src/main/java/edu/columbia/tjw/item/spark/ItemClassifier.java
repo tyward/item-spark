@@ -20,10 +20,8 @@
 package edu.columbia.tjw.item.spark;
 
 import edu.columbia.tjw.item.ItemParameters;
-import edu.columbia.tjw.item.ItemRegressor;
-import edu.columbia.tjw.item.ItemStatus;
-import edu.columbia.tjw.item.base.SimpleStatus;
 import edu.columbia.tjw.item.base.SimpleRegressor;
+import edu.columbia.tjw.item.base.SimpleStatus;
 import edu.columbia.tjw.item.base.StandardCurveType;
 import edu.columbia.tjw.item.data.ItemStatusGrid;
 import edu.columbia.tjw.item.fit.ItemFitter;
@@ -84,6 +82,30 @@ public class ItemClassifier
         return fitter;
     }
 
+
+    public ItemClassificationModel runAnnealing(final Dataset<?> data_, ItemClassificationModel prevModel_)
+    {
+        final ItemFitter<SimpleStatus, SimpleRegressor, StandardCurveType> fitter = generateFitter(data_);
+
+        try
+        {
+            fitter.pushParameters("PrevModel", prevModel_.getParams());
+
+            //Now run full scale annealing.
+            fitter.runAnnealingByEntry(_settings.getCurveRegressors(), false);
+
+            final ItemParameters<SimpleStatus, SimpleRegressor, StandardCurveType> params = fitter.getBestParameters();
+            final ItemClassificationModel classificationModel = new ItemClassificationModel(params, _settings.getRegressors());
+
+            return classificationModel;
+        }
+        catch (final ConvergenceException e)
+        {
+            //TODO: Fix this, this exception is actually not possible here.
+            throw new RuntimeException(e);
+        }
+    }
+
     public ItemClassificationModel retrainModel(final Dataset<?> data_, ItemClassificationModel prevModel_)
     {
         final ItemFitter<SimpleStatus, SimpleRegressor, StandardCurveType> fitter = generateFitter(data_);
@@ -125,9 +147,6 @@ public class ItemClassifier
 
             //Trim anything rendered irrelevant by later passes.
             fitter.trim(true);
-
-            //Now run full scale annealing.
-            fitter.runAnnealingByEntry(_settings.getCurveRegressors(), false);
         }
         catch (final ConvergenceException e)
         {
@@ -135,7 +154,6 @@ public class ItemClassifier
         }
 
         final ItemParameters<SimpleStatus, SimpleRegressor, StandardCurveType> params = fitter.getBestParameters();
-
         final ItemClassificationModel classificationModel = new ItemClassificationModel(params, _settings.getRegressors());
 
         return classificationModel;
@@ -186,9 +204,6 @@ public class ItemClassifier
 
             //Trim anything rendered irrelevant by later passes.
             fitter.trim(true);
-
-            //Now run full scale annealing.
-            fitter.runAnnealingByEntry(_settings.getCurveRegressors(), false);
         }
         catch (final ConvergenceException e)
         {
@@ -196,9 +211,7 @@ public class ItemClassifier
         }
 
         final ItemParameters<SimpleStatus, SimpleRegressor, StandardCurveType> params = fitter.getBestParameters();
-
         final ItemClassificationModel classificationModel = new ItemClassificationModel(params, _settings.getRegressors());
-
         return classificationModel;
     }
 
