@@ -26,11 +26,17 @@ import edu.columbia.tjw.item.base.StandardCurveType;
 import edu.columbia.tjw.item.data.ItemStatusGrid;
 import edu.columbia.tjw.item.fit.ItemFitter;
 import edu.columbia.tjw.item.optimize.ConvergenceException;
+import edu.columbia.tjw.item.util.EnumFamily;
 import edu.columbia.tjw.item.util.random.RandomTool;
+import org.apache.commons.digester.SimpleRegexMatcher;
 import org.apache.spark.ml.classification.ProbabilisticClassifier;
+import org.apache.spark.ml.feature.VectorAssembler;
 import org.apache.spark.ml.linalg.Vector;
 import org.apache.spark.ml.param.ParamMap;
 import org.apache.spark.sql.Dataset;
+import org.apache.spark.sql.Row;
+
+import java.util.*;
 
 /**
  * @author tyler
@@ -40,6 +46,9 @@ public class ItemClassifier
         implements Cloneable
 {
     private static final long serialVersionUID = 0x7cc313e747f68becL;
+
+
+    private static final String INTERCEPT_NAME = "ITEM_INTERCEPT";
 
     private final ItemClassifierSettings _settings;
     private final ItemParameters<SimpleStatus, SimpleRegressor, StandardCurveType> _startingParams;
@@ -82,6 +91,74 @@ public class ItemClassifier
         return fitter;
     }
 
+    public static Dataset<Row> prepareData(final Dataset<?> data_, final ItemClassifierSettings settings_, final String featuresColumn_) {
+        final List<SimpleRegressor> regs = settings_.getRegressors();
+        final String[] regNames = new String[regs.size()];
+        int pointer = 0;
+
+        for(final SimpleRegressor reg : regs) {
+            regNames[pointer++] = reg.name();
+        }
+
+        final Dataset<?> withIntercept = data_.withColumn(INTERCEPT_NAME, org.apache.spark.sql.functions.lit(1.0));
+        final VectorAssembler assembler = new VectorAssembler();
+        assembler.setInputCols(regNames);
+        assembler.setOutputCol(featuresColumn_);
+
+        final Dataset<Row> withFeatures = assembler.transform(withIntercept);
+        return withFeatures;
+    }
+
+
+    public static ItemClassifierSettings prepareSettings(final Dataset<?> data_, final String toStatusColumn_,
+                                                         final List<String> featureList, final Set<String> curveRegressors_, final int maxParamCount_)
+    {
+        final Iterator<?> iter = data_.select(toStatusColumn_).distinct().toLocalIterator();
+        final SortedSet<Integer> statSet = new TreeSet<>();
+
+        while (iter.hasNext())
+        {
+            final Row nextRow = (Row) iter.next();
+            final Object nextObj = nextRow.get(0);
+
+            if (null == nextObj)
+            {
+                continue;
+            }
+
+            statSet.add(((Number) nextObj).intValue());
+        }
+
+        final List<String> statList = new ArrayList<>();
+
+        for (final Integer next : statSet)
+        {
+            statList.add(next.toString());
+        }
+
+        final EnumFamily<SimpleStatus> statFamily = SimpleStatus.generateFamily(statList);
+
+        final List<String> regList = new ArrayList<>();
+        regList.add(INTERCEPT_NAME);
+        regList.addAll(featureList);
+
+        final Set<String> distinctSet = new HashSet<>(regList);
+
+        if (distinctSet.size() != regList.size())
+        {
+            throw new RuntimeException("Non distinct features: " + regList.size());
+        }
+        if (!distinctSet.containsAll(curveRegressors_))
+        {
+            throw new RuntimeException("All curve regressors must also be in the feature list.");
+        }
+
+        final ItemClassifierSettings settings = new ItemClassifierSettings(null, INTERCEPT_NAME,
+                statFamily.getFromOrdinal(0), maxParamCount_, regList, curveRegressors_);
+
+        return settings;
+    }
+
 
     public ItemClassificationModel runAnnealing(final Dataset<?> data_, ItemClassificationModel prevModel_)
     {
@@ -95,7 +172,7 @@ public class ItemClassifier
             fitter.runAnnealingByEntry(_settings.getCurveRegressors(), false);
 
             final ItemParameters<SimpleStatus, SimpleRegressor, StandardCurveType> params = fitter.getBestParameters();
-            final ItemClassificationModel classificationModel = new ItemClassificationModel(params, _settings.getRegressors());
+            final ItemClassificationModel classificationModel = new ItemClassificationModel(params, _settings);
 
             return classificationModel;
         }
@@ -154,7 +231,7 @@ public class ItemClassifier
         }
 
         final ItemParameters<SimpleStatus, SimpleRegressor, StandardCurveType> params = fitter.getBestParameters();
-        final ItemClassificationModel classificationModel = new ItemClassificationModel(params, _settings.getRegressors());
+        final ItemClassificationModel classificationModel = new ItemClassificationModel(params, _settings);
 
         return classificationModel;
     }
@@ -211,7 +288,7 @@ public class ItemClassifier
         }
 
         final ItemParameters<SimpleStatus, SimpleRegressor, StandardCurveType> params = fitter.getBestParameters();
-        final ItemClassificationModel classificationModel = new ItemClassificationModel(params, _settings.getRegressors());
+        final ItemClassificationModel classificationModel = new ItemClassificationModel(params, _settings);
         return classificationModel;
     }
 

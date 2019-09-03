@@ -42,14 +42,16 @@ public class ItemClassificationModel extends ProbabilisticClassificationModel<Ve
 
     private final ItemParameters<SimpleStatus, SimpleRegressor, StandardCurveType> _params;
     private final int[] _offsetMap;
+    private final ItemClassifierSettings _settings;
     private String _uid;
 
     private transient ItemModel<SimpleStatus, SimpleRegressor, StandardCurveType> _model;
     private transient double[] _rawRegressors;
 
-    public ItemClassificationModel(final ItemParameters<SimpleStatus, SimpleRegressor, StandardCurveType> params_, final List<SimpleRegressor> fieldOrdering_)
+    public ItemClassificationModel(final ItemParameters<SimpleStatus, SimpleRegressor, StandardCurveType> params_, final ItemClassifierSettings settings_)
     {
         _params = params_;
+        _settings = settings_;
 
         final List<SimpleRegressor> paramFields = params_.getUniqueRegressors();
 
@@ -68,7 +70,7 @@ public class ItemClassificationModel extends ProbabilisticClassificationModel<Ve
                 continue;
             }
 
-            final int index = fieldOrdering_.indexOf(next);
+            final int index = _settings.getRegressors().indexOf(next);
 
             if (-1 == index)
             {
@@ -77,6 +79,10 @@ public class ItemClassificationModel extends ProbabilisticClassificationModel<Ve
 
             _offsetMap[i] = index;
         }
+    }
+
+    public ItemClassifierSettings getSettings() {
+        return _settings;
     }
 
     @Override

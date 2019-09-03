@@ -46,6 +46,7 @@ public final class ItemClassifierSettings implements Serializable
 {
     private static final long serialVersionUID = 0xc6964a7d0bbd3449L;
 
+
     public ItemSettings _settings;
     private final SimpleStatus _fromStatus;
     private final SimpleRegressor _intercept;
