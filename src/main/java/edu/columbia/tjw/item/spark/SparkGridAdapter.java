@@ -19,10 +19,8 @@
  */
 package edu.columbia.tjw.item.spark;
 
-import edu.columbia.tjw.item.base.RawReader;
-import edu.columbia.tjw.item.ItemRegressor;
+import edu.columbia.tjw.item.base.raw.RawReader;
 import edu.columbia.tjw.item.ItemRegressorReader;
-import edu.columbia.tjw.item.ItemStatus;
 import edu.columbia.tjw.item.base.SimpleRegressor;
 import edu.columbia.tjw.item.base.SimpleStatus;
 import edu.columbia.tjw.item.data.ItemStatusGrid;
