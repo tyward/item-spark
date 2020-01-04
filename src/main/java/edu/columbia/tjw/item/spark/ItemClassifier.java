@@ -28,7 +28,6 @@ import edu.columbia.tjw.item.fit.ItemFitter;
 import edu.columbia.tjw.item.optimize.ConvergenceException;
 import edu.columbia.tjw.item.util.EnumFamily;
 import edu.columbia.tjw.item.util.random.RandomTool;
-import org.apache.commons.digester.SimpleRegexMatcher;
 import org.apache.spark.ml.classification.ProbabilisticClassifier;
 import org.apache.spark.ml.feature.VectorAssembler;
 import org.apache.spark.ml.linalg.Vector;
@@ -59,7 +58,8 @@ public class ItemClassifier
         this(settings_, null);
     }
 
-    public ItemClassifier(final ItemClassifierSettings settings_, final ItemParameters<SimpleStatus, SimpleRegressor, StandardCurveType> startingParams_)
+    public ItemClassifier(final ItemClassifierSettings settings_,
+                          final ItemParameters<SimpleStatus, SimpleRegressor, StandardCurveType> startingParams_)
     {
         if (null == settings_)
         {
@@ -85,18 +85,22 @@ public class ItemClassifier
         final ItemStatusGrid<SimpleStatus, SimpleRegressor> data = new SparkGridAdapter(data_, labelCol, featureCol,
                 this._settings.getRegressors(), this._settings.getFromStatus(), _settings.getIntercept());
 
-        final ItemFitter<SimpleStatus, SimpleRegressor, StandardCurveType> fitter = new ItemFitter<>(_settings.getFactory(),
+        final ItemFitter<SimpleStatus, SimpleRegressor, StandardCurveType> fitter = new ItemFitter<>(
+                _settings.getFactory(),
                 _settings.getIntercept(), _settings.getFromStatus(), data);
 
         return fitter;
     }
 
-    public static Dataset<Row> prepareData(final Dataset<?> data_, final ItemClassifierSettings settings_, final String featuresColumn_) {
+    public static Dataset<Row> prepareData(final Dataset<?> data_, final ItemClassifierSettings settings_,
+                                           final String featuresColumn_)
+    {
         final List<SimpleRegressor> regs = settings_.getRegressors();
         final String[] regNames = new String[regs.size()];
         int pointer = 0;
 
-        for(final SimpleRegressor reg : regs) {
+        for (final SimpleRegressor reg : regs)
+        {
             regNames[pointer++] = reg.name();
         }
 
@@ -111,7 +115,8 @@ public class ItemClassifier
 
 
     public static ItemClassifierSettings prepareSettings(final Dataset<?> data_, final String toStatusColumn_,
-                                                         final List<String> featureList, final Set<String> curveRegressors_, final int maxParamCount_)
+                                                         final List<String> featureList,
+                                                         final Set<String> curveRegressors_, final int maxParamCount_)
     {
         final Iterator<?> iter = data_.select(toStatusColumn_).distinct().toLocalIterator();
         final SortedSet<Integer> statSet = new TreeSet<>();
@@ -186,17 +191,7 @@ public class ItemClassifier
     public ItemClassificationModel retrainModel(final Dataset<?> data_, ItemClassificationModel prevModel_)
     {
         final ItemFitter<SimpleStatus, SimpleRegressor, StandardCurveType> fitter = generateFitter(data_);
-
-        try
-        {
-            fitter.pushParameters("PrevModel", prevModel_.getParams());
-        }
-        catch (final ConvergenceException e)
-        {
-            //TODO: Fix this, this exception is actually not possible here.
-            throw new RuntimeException(e);
-        }
-
+        fitter.pushParameters("PrevModel", prevModel_.getParams());
 
         final int maxParams = _settings.getMaxParamCount();
 
@@ -205,25 +200,7 @@ public class ItemClassifier
             final int usedParams = fitter.getBestParameters().getEffectiveParamCount();
             final int remainingParams = maxParams - usedParams;
 
-            //Starts out with vacuous intercepts, correct those first.
-            fitter.fitCoefficients();
-
-            if (remainingParams > 1)
-            {
-                //Now add the flags, recalibrate beta values.
-                fitter.addCoefficients(_settings.getNonCurveRegressors());
-            }
-
-            final int curveAvailable = maxParams - fitter.getBestParameters().getEffectiveParamCount();
-
-            if (curveAvailable > 3)
-            {
-                //Now expand the model by adding curves.
-                fitter.expandModel(_settings.getCurveRegressors(), curveAvailable);
-            }
-
-            //Trim anything rendered irrelevant by later passes.
-            fitter.trim(true);
+            fitter.fitModel(_settings.getNonCurveRegressors(), _settings.getCurveRegressors(), remainingParams, false);
         }
         catch (final ConvergenceException e)
         {
@@ -244,15 +221,7 @@ public class ItemClassifier
 
         if (null != _startingParams)
         {
-            try
-            {
-                fitter.pushParameters("InitialParams", _startingParams);
-            }
-            catch (final ConvergenceException e)
-            {
-                //TODO: Fix this, this exception is actually not possible here.
-                throw new RuntimeException(e);
-            }
+            fitter.pushParameters("InitialParams", _startingParams);
         }
 
         final int maxParams = _settings.getMaxParamCount();
@@ -262,25 +231,7 @@ public class ItemClassifier
             final int usedParams = fitter.getBestParameters().getEffectiveParamCount();
             final int remainingParams = maxParams - usedParams;
 
-            //Starts out with vacuous intercepts, correct those first.
-            fitter.fitCoefficients();
-
-            if (remainingParams > 1)
-            {
-                //Now add the flags, recalibrate beta values.
-                fitter.addCoefficients(_settings.getNonCurveRegressors());
-            }
-
-            final int curveAvailable = maxParams - fitter.getBestParameters().getEffectiveParamCount();
-
-            if (curveAvailable > 3)
-            {
-                //Now expand the model by adding curves.
-                fitter.expandModel(_settings.getCurveRegressors(), curveAvailable);
-            }
-
-            //Trim anything rendered irrelevant by later passes.
-            fitter.trim(true);
+            fitter.fitModel(_settings.getNonCurveRegressors(), _settings.getCurveRegressors(), remainingParams, false);
         }
         catch (final ConvergenceException e)
         {
