@@ -20,10 +20,12 @@
 package edu.columbia.tjw.item.spark;
 
 import edu.columbia.tjw.item.ItemParameters;
+import edu.columbia.tjw.item.ItemSettings;
 import edu.columbia.tjw.item.base.SimpleRegressor;
 import edu.columbia.tjw.item.base.SimpleStatus;
 import edu.columbia.tjw.item.base.StandardCurveType;
 import edu.columbia.tjw.item.data.ItemStatusGrid;
+import edu.columbia.tjw.item.fit.FitResult;
 import edu.columbia.tjw.item.fit.ItemFitter;
 import edu.columbia.tjw.item.optimize.ConvergenceException;
 import edu.columbia.tjw.item.util.EnumFamily;
@@ -118,6 +120,15 @@ public class ItemClassifier
                                                          final List<String> featureList,
                                                          final Set<String> curveRegressors_, final int maxParamCount_)
     {
+        return prepareSettings(data_, toStatusColumn_, featureList, curveRegressors_, maxParamCount_,
+                new ItemSettings());
+    }
+
+    public static ItemClassifierSettings prepareSettings(final Dataset<?> data_, final String toStatusColumn_,
+                                                         final List<String> featureList,
+                                                         final Set<String> curveRegressors_, final int maxParamCount_
+            , final ItemSettings settings_)
+    {
         final Iterator<?> iter = data_.select(toStatusColumn_).distinct().toLocalIterator();
         final SortedSet<Integer> statSet = new TreeSet<>();
 
@@ -158,7 +169,7 @@ public class ItemClassifier
             throw new RuntimeException("All curve regressors must also be in the feature list.");
         }
 
-        final ItemClassifierSettings settings = new ItemClassifierSettings(null, INTERCEPT_NAME,
+        final ItemClassifierSettings settings = new ItemClassifierSettings(settings_, INTERCEPT_NAME,
                 statFamily.getFromOrdinal(0), maxParamCount_, regList, curveRegressors_);
 
         return settings;
@@ -176,8 +187,9 @@ public class ItemClassifier
             //Now run full scale annealing.
             fitter.runAnnealingByEntry(_settings.getCurveRegressors(), false);
 
-            final ItemParameters<SimpleStatus, SimpleRegressor, StandardCurveType> params = fitter.getBestParameters();
-            final ItemClassificationModel classificationModel = new ItemClassificationModel(params, _settings);
+            final FitResult<SimpleStatus, SimpleRegressor, StandardCurveType> fitResult = fitter.getChain()
+                    .getLatestResults();
+            final ItemClassificationModel classificationModel = new ItemClassificationModel(fitResult, _settings);
 
             return classificationModel;
         }
@@ -207,8 +219,9 @@ public class ItemClassifier
             throw new RuntimeException(e);
         }
 
-        final ItemParameters<SimpleStatus, SimpleRegressor, StandardCurveType> params = fitter.getBestParameters();
-        final ItemClassificationModel classificationModel = new ItemClassificationModel(params, _settings);
+        final FitResult<SimpleStatus, SimpleRegressor, StandardCurveType> fitResult =
+                fitter.getChain().getLatestResults();
+        final ItemClassificationModel classificationModel = new ItemClassificationModel(fitResult, _settings);
 
         return classificationModel;
     }
@@ -238,8 +251,10 @@ public class ItemClassifier
             throw new RuntimeException(e);
         }
 
-        final ItemParameters<SimpleStatus, SimpleRegressor, StandardCurveType> params = fitter.getBestParameters();
-        final ItemClassificationModel classificationModel = new ItemClassificationModel(params, _settings);
+        final FitResult<SimpleStatus, SimpleRegressor, StandardCurveType> fitResult =
+                fitter.getChain().getLatestResults();
+        final ItemClassificationModel classificationModel = new ItemClassificationModel(fitResult,
+                _settings);
         return classificationModel;
     }
 

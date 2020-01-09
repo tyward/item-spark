@@ -24,6 +24,7 @@ import edu.columbia.tjw.item.ItemParameters;
 import edu.columbia.tjw.item.base.SimpleRegressor;
 import edu.columbia.tjw.item.base.SimpleStatus;
 import edu.columbia.tjw.item.base.StandardCurveType;
+import edu.columbia.tjw.item.fit.FitResult;
 import edu.columbia.tjw.item.util.random.RandomTool;
 import org.apache.spark.ml.classification.ProbabilisticClassificationModel;
 import org.apache.spark.ml.linalg.DenseVector;
@@ -32,28 +33,31 @@ import org.apache.spark.ml.param.ParamMap;
 
 import java.io.*;
 import java.util.List;
+import java.util.zip.GZIPInputStream;
+import java.util.zip.GZIPOutputStream;
 
 /**
  * @author tyler
  */
 public class ItemClassificationModel extends ProbabilisticClassificationModel<Vector, ItemClassificationModel>
 {
-    private static final long serialVersionUID = 0x8c7eb061e0d2980aL;
+    private static final long serialVersionUID = 0x8c7eb061e0d2988aL;
 
-    private final ItemParameters<SimpleStatus, SimpleRegressor, StandardCurveType> _params;
     private final int[] _offsetMap;
     private final ItemClassifierSettings _settings;
+    private final FitResult<SimpleStatus, SimpleRegressor, StandardCurveType> _fitResult;
     private String _uid;
 
     private transient ItemModel<SimpleStatus, SimpleRegressor, StandardCurveType> _model;
     private transient double[] _rawRegressors;
 
-    public ItemClassificationModel(final ItemParameters<SimpleStatus, SimpleRegressor, StandardCurveType> params_, final ItemClassifierSettings settings_)
+    public ItemClassificationModel(final FitResult<SimpleStatus, SimpleRegressor, StandardCurveType> fitResult_,
+                                   final ItemClassifierSettings settings_)
     {
-        _params = params_;
+        _fitResult = fitResult_;
         _settings = settings_;
 
-        final List<SimpleRegressor> paramFields = params_.getUniqueRegressors();
+        final List<SimpleRegressor> paramFields = getParams().getUniqueRegressors();
 
         _offsetMap = new int[paramFields.size()];
 
@@ -64,7 +68,7 @@ public class ItemClassificationModel extends ProbabilisticClassificationModel<Ve
         {
             final SimpleRegressor next = paramFields.get(i);
 
-            if (next == _params.getEntryRegressor(_params.getInterceptIndex(), 0))
+            if (next == getParams().getEntryRegressor(getParams().getInterceptIndex(), 0))
             {
                 _offsetMap[i] = -1;
                 continue;
@@ -81,7 +85,8 @@ public class ItemClassificationModel extends ProbabilisticClassificationModel<Ve
         }
     }
 
-    public ItemClassifierSettings getSettings() {
+    public ItemClassifierSettings getSettings()
+    {
         return _settings;
     }
 
@@ -95,7 +100,7 @@ public class ItemClassificationModel extends ProbabilisticClassificationModel<Ve
     @Override
     public int numClasses()
     {
-        return _params.getStatus().getReachableCount();
+        return getParams().getStatus().getReachableCount();
     }
 
     @Override
@@ -103,7 +108,7 @@ public class ItemClassificationModel extends ProbabilisticClassificationModel<Ve
     {
         final ItemModel<SimpleStatus, SimpleRegressor, StandardCurveType> model = getModel();
 
-        for (int i = 0; i < _params.getUniqueRegressors().size(); i++)
+        for (int i = 0; i < getParams().getUniqueRegressors().size(); i++)
         {
             final int fieldIndex = _offsetMap[i];
 
@@ -117,7 +122,7 @@ public class ItemClassificationModel extends ProbabilisticClassificationModel<Ve
             }
         }
 
-        final double[] probabilities = new double[_params.getStatus().getReachableCount()];
+        final double[] probabilities = new double[getParams().getStatus().getReachableCount()];
         model.transitionProbability(_rawRegressors, probabilities);
         return new DenseVector(probabilities);
     }
@@ -140,17 +145,23 @@ public class ItemClassificationModel extends ProbabilisticClassificationModel<Ve
         return _uid;
     }
 
+
+    public FitResult<SimpleStatus, SimpleRegressor, StandardCurveType> getFitResult()
+    {
+        return _fitResult;
+    }
+
     public final ItemParameters<SimpleStatus, SimpleRegressor, StandardCurveType> getParams()
     {
-        return _params;
+        return getFitResult().getParams();
     }
 
     private ItemModel<SimpleStatus, SimpleRegressor, StandardCurveType> getModel()
     {
         if (null == _model)
         {
-            _model = new ItemModel<>(_params);
-            _rawRegressors = new double[_params.getUniqueRegressors().size()];
+            _model = new ItemModel<>(getParams());
+            _rawRegressors = new double[getParams().getUniqueRegressors().size()];
         }
 
         return _model;
@@ -159,11 +170,10 @@ public class ItemClassificationModel extends ProbabilisticClassificationModel<Ve
     public void save(final String fileName_) throws IOException
     {
         try (final FileOutputStream fout = new FileOutputStream(fileName_);
-             final ObjectOutputStream oOut = new ObjectOutputStream(fout);)
+             final GZIPOutputStream zipOut = new GZIPOutputStream(fout);
+             final ObjectOutputStream oOut = new ObjectOutputStream(zipOut);)
         {
             oOut.writeObject(this);
-
-
         }
     }
 
@@ -171,7 +181,8 @@ public class ItemClassificationModel extends ProbabilisticClassificationModel<Ve
     public static ItemClassificationModel load(final String filename_) throws IOException
     {
         try (final FileInputStream fIn = new FileInputStream(filename_);
-             final ObjectInputStream oIn = new ObjectInputStream(fIn))
+             final GZIPInputStream zipIn = new GZIPInputStream(fIn);
+             final ObjectInputStream oIn = new ObjectInputStream(zipIn))
         {
 
             return (ItemClassificationModel) oIn.readObject();
