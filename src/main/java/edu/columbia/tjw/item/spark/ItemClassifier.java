@@ -24,8 +24,11 @@ import edu.columbia.tjw.item.ItemSettings;
 import edu.columbia.tjw.item.base.SimpleRegressor;
 import edu.columbia.tjw.item.base.SimpleStatus;
 import edu.columbia.tjw.item.base.StandardCurveType;
+import edu.columbia.tjw.item.base.raw.RawFittingGrid;
+import edu.columbia.tjw.item.data.ItemFittingGrid;
 import edu.columbia.tjw.item.data.ItemStatusGrid;
 import edu.columbia.tjw.item.fit.FitResult;
+import edu.columbia.tjw.item.fit.GradientResult;
 import edu.columbia.tjw.item.fit.ItemFitter;
 import edu.columbia.tjw.item.optimize.ConvergenceException;
 import edu.columbia.tjw.item.util.EnumFamily;
@@ -47,8 +50,6 @@ public class ItemClassifier
         implements Cloneable
 {
     private static final long serialVersionUID = 0x7cc313e747f68becL;
-
-
     private static final String INTERCEPT_NAME = "ITEM_INTERCEPT";
 
     private final ItemClassifierSettings _settings;
@@ -78,7 +79,12 @@ public class ItemClassifier
         return this.defaultCopy(paramMap_);
     }
 
-    private ItemFitter<SimpleStatus, SimpleRegressor, StandardCurveType> generateFitter(final Dataset<?> data_)
+    public ItemFittingGrid<SimpleStatus, SimpleRegressor> generateMaterializedGrid(final Dataset<?> data_)
+    {
+        return new RawFittingGrid<>(generateFitter(data_).getGrid());
+    }
+
+    private ItemStatusGrid<SimpleStatus, SimpleRegressor> generateGrid(final Dataset<?> data_)
     {
         //This is pretty filthy, but it will get the job done. Though, only locally.
         final String featureCol = this.getFeaturesCol();
@@ -87,9 +93,17 @@ public class ItemClassifier
         final ItemStatusGrid<SimpleStatus, SimpleRegressor> data = new SparkGridAdapter(data_, labelCol, featureCol,
                 this._settings.getRegressors(), this._settings.getFromStatus(), _settings.getIntercept());
 
+        return data;
+    }
+
+
+    private ItemFitter<SimpleStatus, SimpleRegressor, StandardCurveType> generateFitter(final Dataset<?> data_)
+    {
+        final ItemStatusGrid<SimpleStatus, SimpleRegressor> data = generateGrid(data_);
+
         final ItemFitter<SimpleStatus, SimpleRegressor, StandardCurveType> fitter = new ItemFitter<>(
                 _settings.getFactory(),
-                _settings.getIntercept(), _settings.getFromStatus(), data);
+                _settings.getIntercept(), _settings.getFromStatus(), data, _settings.getSettings());
 
         return fitter;
     }
@@ -176,6 +190,19 @@ public class ItemClassifier
     }
 
 
+    public GradientResult computeGradients(final Dataset<?> data_, ItemClassificationModel model_)
+    {
+        final ItemFitter<SimpleStatus, SimpleRegressor, StandardCurveType> fitter = generateFitter(data_);
+        return fitter.getCalculator().computeGradients(model_.getParams());
+    }
+
+    public FitResult<SimpleStatus, SimpleRegressor, StandardCurveType> computeFitResult(final Dataset<?> data_,
+                                                                                        ItemClassificationModel model_)
+    {
+        final ItemFitter<SimpleStatus, SimpleRegressor, StandardCurveType> fitter = generateFitter(data_);
+        return fitter.getCalculator().computeFitResult(model_.getParams(), null);
+    }
+
     public ItemClassificationModel runAnnealing(final Dataset<?> data_, ItemClassificationModel prevModel_)
     {
         final ItemFitter<SimpleStatus, SimpleRegressor, StandardCurveType> fitter = generateFitter(data_);
@@ -185,7 +212,7 @@ public class ItemClassifier
             fitter.pushParameters("PrevModel", prevModel_.getParams());
 
             //Now run full scale annealing.
-            fitter.runAnnealingByEntry(_settings.getCurveRegressors(), false);
+            fitter.runAnnealingByEntry(_settings.getCurveRegressors(), true);
 
             final FitResult<SimpleStatus, SimpleRegressor, StandardCurveType> fitResult = fitter.getChain()
                     .getLatestResults();

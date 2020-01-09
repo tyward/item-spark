@@ -25,6 +25,8 @@ import edu.columbia.tjw.item.base.SimpleRegressor;
 import edu.columbia.tjw.item.base.SimpleStatus;
 import edu.columbia.tjw.item.data.ItemStatusGrid;
 import edu.columbia.tjw.item.util.EnumFamily;
+
+import java.io.Serializable;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
@@ -37,9 +39,8 @@ import org.apache.spark.sql.Row;
  *
  * @author tyler
  */
-public class SparkGridAdapter implements ItemStatusGrid<SimpleStatus, SimpleRegressor>
+public class SparkGridAdapter implements ItemStatusGrid<SimpleStatus, SimpleRegressor>, Serializable
 {
-
     private final SimpleStatus _fromStatus;
     private final EnumFamily<SimpleRegressor> _regFamily;
     private final int[] _toLabels;
@@ -145,9 +146,8 @@ public class SparkGridAdapter implements ItemStatusGrid<SimpleStatus, SimpleRegr
         return _regFamily;
     }
 
-    private static final class InterceptReader implements ItemRegressorReader
+    private static final class InterceptReader implements ItemRegressorReader, Serializable
     {
-
         private final int _size;
 
         public InterceptReader(final int size_)
