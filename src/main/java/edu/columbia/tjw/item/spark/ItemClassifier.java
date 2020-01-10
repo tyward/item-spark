@@ -79,7 +79,7 @@ public class ItemClassifier
         return this.defaultCopy(paramMap_);
     }
 
-    public ItemFittingGrid<SimpleStatus, SimpleRegressor> generateMaterializedGrid(final Dataset<?> data_)
+    public RawFittingGrid<SimpleStatus, SimpleRegressor> generateMaterializedGrid(final Dataset<?> data_)
     {
         return new RawFittingGrid<>(generateFitter(data_).getGrid());
     }
