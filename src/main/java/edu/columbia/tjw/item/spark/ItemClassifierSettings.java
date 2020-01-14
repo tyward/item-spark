@@ -20,9 +20,7 @@
 package edu.columbia.tjw.item.spark;
 
 import edu.columbia.tjw.item.ItemCurveFactory;
-import edu.columbia.tjw.item.ItemRegressor;
 import edu.columbia.tjw.item.ItemSettings;
-import edu.columbia.tjw.item.ItemStatus;
 import edu.columbia.tjw.item.base.SimpleRegressor;
 import edu.columbia.tjw.item.base.SimpleStatus;
 import edu.columbia.tjw.item.base.StandardCurveFactory;
@@ -30,12 +28,7 @@ import edu.columbia.tjw.item.base.StandardCurveType;
 import edu.columbia.tjw.item.util.EnumFamily;
 
 import java.io.Serializable;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.Set;
-import java.util.SortedSet;
-import java.util.TreeSet;
+import java.util.*;
 
 /**
  * All the collected settings needed in order to run the ItemClassifier.
@@ -56,6 +49,17 @@ public final class ItemClassifierSettings implements Serializable
     private final SortedSet<SimpleRegressor> _curveRegressors;
     private final Set<SimpleRegressor> _nonCurveRegressors;
 
+    public ItemClassifierSettings(final ItemClassifierSettings base_, final ItemSettings settings_)
+    {
+        _settings = settings_;
+        _fromStatus = base_._fromStatus;
+        _intercept = base_._intercept;
+        _factory = base_._factory;
+        _maxParamCount = base_._maxParamCount;
+        _regressors = base_._regressors;
+        _curveRegressors = base_._curveRegressors;
+        _nonCurveRegressors = base_._nonCurveRegressors;
+    }
 
     /**
      * Use this to construct settings unless you really know what you're doing.
@@ -73,12 +77,14 @@ public final class ItemClassifierSettings implements Serializable
      *                         are not binary flags), order doesn't matter for these.
      */
     public ItemClassifierSettings(final ItemSettings settings_, final String intercept_,
-                                  final SimpleStatus status_, final int maxParamCount_, final List<String> regressors_, final Set<String> curveRegressors_)
+                                  final SimpleStatus status_, final int maxParamCount_, final List<String> regressors_,
+                                  final Set<String> curveRegressors_)
     {
         if (null == settings_)
         {
             _settings = new ItemSettings();
-        } else
+        }
+        else
         {
             _settings = settings_;
         }
@@ -115,7 +121,8 @@ public final class ItemClassifierSettings implements Serializable
 
         if ((_nonCurveRegressors.size() + _curveRegressors.size() + 1) != _regressors.size())
         {
-            // Either _regressors has some repeated items, or curveRegressors contains items that are not in the regressors list.
+            // Either _regressors has some repeated items, or curveRegressors contains items that are not in the
+            // regressors list.
             throw new IllegalArgumentException("Regressor mismatch: Either regressors "
                     + "contains repeated items, or curveRegressors contains items not in regressors: "
                     + _nonCurveRegressors.toString() +

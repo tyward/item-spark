@@ -25,7 +25,6 @@ import edu.columbia.tjw.item.base.SimpleRegressor;
 import edu.columbia.tjw.item.base.SimpleStatus;
 import edu.columbia.tjw.item.base.StandardCurveType;
 import edu.columbia.tjw.item.base.raw.RawFittingGrid;
-import edu.columbia.tjw.item.data.ItemFittingGrid;
 import edu.columbia.tjw.item.data.ItemStatusGrid;
 import edu.columbia.tjw.item.fit.FitResult;
 import edu.columbia.tjw.item.fit.GradientResult;
@@ -77,6 +76,11 @@ public class ItemClassifier
     public ItemClassifier copy(ParamMap paramMap_)
     {
         return this.defaultCopy(paramMap_);
+    }
+
+    public ItemClassifierSettings getSettings()
+    {
+        return _settings;
     }
 
     public RawFittingGrid<SimpleStatus, SimpleRegressor> generateMaterializedGrid(final Dataset<?> data_)
