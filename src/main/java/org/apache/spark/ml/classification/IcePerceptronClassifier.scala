@@ -1,7 +1,7 @@
 package org.apache.spark.ml.classification
 
 import org.apache.spark.annotation.Since
-import org.apache.spark.ml.ann.{FeedForwardTrainer, IceTopology}
+import org.apache.spark.ml.ann.{FeedForwardTrainer, IceFeedForwardTopology}
 import org.apache.spark.ml.feature.OneHotEncoderModel
 import org.apache.spark.ml.linalg.Vector
 import org.apache.spark.ml.param._
@@ -134,7 +134,7 @@ class IcePerceptronClassifier @Since("1.5.0")(
     }
     //val topology = FeedForwardTopology.multiLayerPerceptron(myLayers, softmaxOnTop = true)
 
-    val topology = IceTopology.multiLayerPerceptron(myLayers)
+    val topology = IceFeedForwardTopology.multiLayerPerceptron(myLayers)
     val trainer = new FeedForwardTrainer(topology, myLayers(0), myLayers.last)
     if (isDefined(initialWeights)) {
       trainer.setWeights($(initialWeights))
@@ -176,4 +176,9 @@ object IcePerceptronClassifier
   @Since("2.0.0")
   override def load(path: String): IcePerceptronClassifier = super.load(path)
 }
+
+
+
+
+
 
