@@ -107,28 +107,28 @@ public final class ItemFitGenerator
 
     private File generateFitFile(final long seed, final OptimizationTarget target_)
     {
-        final String suffix;
-
-        switch (target_)
-        {
-            case ENTROPY:
-                suffix = "_item";
-                break;
-            case ICE2:
-                suffix = "_ice";
-                break;
-            case ICE_STABLE_B:
-                suffix = "_ice3";
-                break;
-            case ICE:
-                suffix = "_ice4";
-                break;
-            case ICE_RAW:
-                suffix = "_tic";
-                break;
-            default:
-                throw new IllegalArgumentException("Unexpected target: " + target_);
-        }
+        final String suffix = "_" + target_.name();
+//
+//        switch (target_)
+//        {
+//            case ENTROPY:
+//                suffix = "_item";
+//                break;
+//            case ICE2:
+//                suffix = "_ice";
+//                break;
+//            case ICE_STABLE_B:
+//                suffix = "_ice3";
+//                break;
+//            case ICE:
+//                suffix = "_ice4";
+//                break;
+//            case ICE_RAW:
+//                suffix = "_tic";
+//                break;
+//            default:
+//                throw new IllegalArgumentException("Unexpected target: " + target_);
+//        }
 
         final String outputPath = "params_" + Long.toHexString(seed) + suffix + ".dat";
         final File modelFolder = new File(_fitFolder, "models");
