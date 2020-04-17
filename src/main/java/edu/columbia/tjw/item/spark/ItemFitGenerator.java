@@ -67,69 +67,9 @@ public final class ItemFitGenerator
         return printer;
     }
 
-//    public void convertFits() throws IOException
-//    {
-//        final File[] fileList = _fitFolder.listFiles();
-//
-//        for (final File next : fileList)
-//        {
-//            final String nextName = next.getName();
-//
-//            if (!nextName.matches("run_.*?_.*?.dat"))
-//            {
-//                continue;
-//            }
-//
-//            final String subName = nextName.replace("run_", "params_");
-//            final File subFile = new File(_fitFolder, subName);
-//
-//            if (subFile.exists())
-//            {
-//                continue;
-//            }
-//
-//            final ItemClassificationModel model = ItemClassificationModel.load(next.getAbsolutePath());
-//            final FitResult<SimpleStatus, SimpleRegressor, StandardCurveType> fitResult = model.getFitResult();
-//
-//            try (final FileOutputStream fout = new FileOutputStream(subFile))
-//            {
-//                fitResult.writeToStream(fout);
-//            }
-//
-//            if (_settingsFile.exists())
-//            {
-//                continue;
-//            }
-//
-//            model.getSettings().save(_settingsFile.getAbsolutePath());
-//        }
-//    }
-
     private File generateFitFile(final long seed, final OptimizationTarget target_)
     {
         final String suffix = "_" + target_.name();
-//
-//        switch (target_)
-//        {
-//            case ENTROPY:
-//                suffix = "_item";
-//                break;
-//            case ICE2:
-//                suffix = "_ice";
-//                break;
-//            case ICE_STABLE_B:
-//                suffix = "_ice3";
-//                break;
-//            case ICE:
-//                suffix = "_ice4";
-//                break;
-//            case ICE_RAW:
-//                suffix = "_tic";
-//                break;
-//            default:
-//                throw new IllegalArgumentException("Unexpected target: " + target_);
-//        }
-
         final String outputPath = "params_" + Long.toHexString(seed) + suffix + ".dat";
         final File modelFolder = new File(_fitFolder, "models");
         modelFolder.mkdirs();
