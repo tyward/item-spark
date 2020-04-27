@@ -62,6 +62,13 @@ public final class ItemFitGenerator
         outputFolder.mkdirs();
         final File outputFile = new File(outputFolder, filename_);
 
+        if (outputFile.exists())
+        {
+            // File exists, we will skip this stage.
+            System.out.println("Skipping stage: " + outputFile.getAbsolutePath());
+            return null;
+        }
+
         final OutputStream oStream = new FileOutputStream(outputFile);
         final PrintStream printer = new PrintStream(oStream);
         return printer;
@@ -84,7 +91,7 @@ public final class ItemFitGenerator
 
         if (outputFile.exists())
         {
-            System.out.println("Fit already exists.");
+            System.out.println("Fit already exists: " + outputFile.getAbsolutePath());
             return;
         }
 
@@ -481,7 +488,7 @@ public final class ItemFitGenerator
                     final double mean = reduced.getBucketMean(j);
                     final double spread = 0.5 * (reduced.getBucketMean(j + 1) - reduced.getBucketMean(j - 1));
 
-                    if (Double.isNaN(spread))
+                    if (Double.isNaN(spread) || spread == 0.0)
                     {
                         continue;
                     }
@@ -649,42 +656,63 @@ public final class ItemFitGenerator
 
         ItemFitGenerator gen = new ItemFitGenerator(
                 new File("/Users/tyler/sync-workspace/code/item_test"));
+                //new File("./"));
 
         //gen.convertFits();
         gen.generateFits(numFits, maxParams);
 
+
         try (final PrintStream printer = gen.generatePrinter("results.csv"))
         {
-            gen.printResults(numFits, printer);
+            if (printer != null)
+            {
+                gen.printResults(numFits, printer);
+            }
         }
+
 
         final List<FitResult<SimpleStatus, SimpleRegressor, StandardCurveType>> paramList = gen.getAllParams(numFits);
 
         try (final PrintStream printer = gen.generatePrinter("corrections.csv"))
         {
-            gen.examineCorrections(paramList, printer);
+            if (printer != null)
+            {
+                gen.examineCorrections(paramList, printer);
+            }
         }
 
         try (final PrintStream printer = gen.generatePrinter("residuals.csv"))
         {
-            gen.examineResiduals2(paramList, printer);
+            if (printer != null)
+            {
+                gen.examineResiduals2(paramList, printer);
+            }
         }
 
         try (final PrintStream printer = gen.generatePrinter("cost.csv"))
         {
-            gen.examineCost(paramList, printer);
+            if (printer != null)
+            {
+                gen.examineCost(paramList, printer);
+            }
         }
 
         try (final PrintStream printer = gen.generatePrinter("gradients.csv"))
         {
-            gen.examineGradients(paramList, printer);
+            if (printer != null)
+            {
+                gen.examineGradients(paramList, printer);
+            }
         }
 
         try (final PrintStream printer = gen.generatePrinter("overfit_residuals.csv"))
         {
-            final List<FitResult<SimpleStatus, SimpleRegressor, StandardCurveType>> overfit = gen
-                    .generateOverfit(numFits);
-            gen.examineResiduals2(overfit, printer);
+            if (printer != null)
+            {
+                final List<FitResult<SimpleStatus, SimpleRegressor, StandardCurveType>> overfit = gen
+                        .generateOverfit(numFits);
+                gen.examineResiduals2(overfit, printer);
+            }
         }
 
         System.out.println("Done.");
