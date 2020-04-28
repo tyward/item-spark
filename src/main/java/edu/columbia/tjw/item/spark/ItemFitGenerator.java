@@ -383,7 +383,7 @@ public final class ItemFitGenerator
         }
     }
 
-    public ItemParameters<SimpleStatus, SimpleRegressor, StandardCurveType> getBestFit(final int fitCount_)
+    public PriorityQueue<FitResult<SimpleStatus, SimpleRegressor, StandardCurveType>> getBestFit(final int fitCount_)
             throws Exception
     {
         final List<FitResult<SimpleStatus, SimpleRegressor, StandardCurveType>> paramList = getAllParams(fitCount_);
@@ -400,10 +400,21 @@ public final class ItemFitGenerator
         final EntropyCalculator<SimpleStatus, SimpleRegressor, StandardCurveType> fitCalc = new EntropyCalculator<>(
                 _dataFit, entropySettings);
 
+        final PriorityQueue<FitResult<SimpleStatus, SimpleRegressor, StandardCurveType>> bestResults =
+                new PriorityQueue<>((FitResult<SimpleStatus, SimpleRegressor, StandardCurveType> a_,
+                                     FitResult<SimpleStatus, SimpleRegressor, StandardCurveType> b_) -> Double
+                        .compare(a_.getInformationCriterion(), b_.getInformationCriterion()));
+
         for (final FitResult<SimpleStatus, SimpleRegressor, StandardCurveType> next : paramList)
         {
-            final double nextAic = (_dataFit.size() * fitCalc.computeEntropy(next.getParams()).getEntropyMean()) + next
-                    .getParams().getEffectiveParamCount();
+            final FitResult<SimpleStatus, SimpleRegressor, StandardCurveType> recalc =
+                    fitCalc.computeFitResult(next.getParams(), null);
+
+            bestResults.add(recalc);
+
+            final double nextAic = (_dataFit.size() * fitCalc.computeEntropy(next.getParams()).getEntropyMean()) +
+                    next
+                            .getParams().getEffectiveParamCount();
 
             if (nextAic < bestAic)
             {
@@ -413,18 +424,18 @@ public final class ItemFitGenerator
             }
         }
 
-
         System.out.println(
                 "Identified best model[" + bestAic + "][" + bestParams.getEffectiveParamCount() + "]: " + bestParams);
 
-        return bestParams;
+        return bestResults;
     }
 
 
     public List<FitResult<SimpleStatus, SimpleRegressor, StandardCurveType>> generateOverfit(final int fitCount_)
             throws Exception
     {
-        final ItemParameters<SimpleStatus, SimpleRegressor, StandardCurveType> bestParams = getBestFit(fitCount_);
+
+
         final ItemClassifierSettings settings = ItemClassifierSettings.load(_settingsFile.getAbsolutePath());
         final ItemSettings entropySettings =
                 generateSettings(OptimizationTarget.ENTROPY, _startingSeed).toBuilder().setzScoreCutoff(0.0)
@@ -434,7 +445,6 @@ public final class ItemFitGenerator
 
         final EntropyCalculator<SimpleStatus, SimpleRegressor, StandardCurveType> fitCalc = new EntropyCalculator<>(
                 _dataFit, entropySettings);
-
 
         Map<SimpleRegressor, QuantileBreakdown> quantiles = new TreeMap<>();
 
@@ -446,94 +456,115 @@ public final class ItemFitGenerator
         }
 
 
-        final int maxQuantileSteps = 10;
-        final int minQuantileSteps = 3;
-        final double smallChange = 1.0;
-
-
-        final StandardCurveFactory factory = StandardCurveType.LOGISTIC.getFactory();
         final List<FitResult<SimpleStatus, SimpleRegressor, StandardCurveType>> expandedList = new ArrayList<>();
-        expandedList.add(fitCalc.computeFitResult(bestParams, null));
 
-        System.out.println("Curve regressor count: " + settings.getCurveRegressors().size());
-
-        for (int i = minQuantileSteps; i <= maxQuantileSteps; i++)
+        final int maxModels = 10;
+        PriorityQueue<FitResult<SimpleStatus, SimpleRegressor, StandardCurveType>> bestFits = getBestFit(fitCount_);
+        for (int w = 0; w < maxModels; w++)
         {
-            ItemParameters<SimpleStatus, SimpleRegressor, StandardCurveType> baseline = bestParams;
+            final ItemParameters<SimpleStatus, SimpleRegressor, StandardCurveType> bestParams =
+                    bestFits.poll().getParams();
 
-            final ItemFitter<SimpleStatus, SimpleRegressor, StandardCurveType> fitter =
-                    new ItemFitter<>(baseline,
-                            _dataFit,
-                            ItemSettings.newBuilder().setTarget(OptimizationTarget.ENTROPY).setRand(_startingSeed)
-                                    .setzScoreCutoff(0.0).setAicCutoff(0.0)
-                                    .build());
+            expandedList.add(fitCalc.computeFitResult(bestParams, null));
 
+            System.out.println("Curve regressor count: " + settings.getCurveRegressors().size());
 
-            final double interceptChange = 0.0; //-smallChange / i;
+            final int maxQuantileSteps = 10;
+            final int minQuantileSteps = 3;
 
-            for (SimpleRegressor curveReg : settings.getCurveRegressors())
+            for (int i = minQuantileSteps; i <= maxQuantileSteps; i++)
             {
-                QuantileBreakdown rawQuantiles = quantiles.get(curveReg);
+                ItemParameters<SimpleStatus, SimpleRegressor, StandardCurveType> baseline = bestParams;
 
-                if (rawQuantiles.getSize() < i)
+                final ItemFitter<SimpleStatus, SimpleRegressor, StandardCurveType> fitter =
+                        new ItemFitter<>(baseline,
+                                _dataFit,
+                                ItemSettings.newBuilder().setTarget(OptimizationTarget.ENTROPY).setRand(_startingSeed)
+                                        .setzScoreCutoff(0.0).setAicCutoff(0.0)
+                                        .build());
+
+
+                for (SimpleRegressor curveReg : settings.getCurveRegressors())
                 {
-                    System.out.println("Not enough quantiles[" + i + "]: " + curveReg);
-                    continue;
-                }
+                    QuantileBreakdown rawQuantiles = quantiles.get(curveReg);
 
-                QuantileBreakdown reduced = rawQuantiles.rebucket(i);
-
-                for (int j = 1; j < i - 1; j++)
-                {
-                    final double mean = reduced.getBucketMean(j);
-                    final double spread = 0.5 * (reduced.getBucketMean(j + 1) - reduced.getBucketMean(j - 1));
-
-                    if (Double.isNaN(spread) || spread == 0.0)
+                    if (rawQuantiles.getSize() < i)
                     {
+                        System.out.println("Not enough quantiles[" + i + "]: " + curveReg);
                         continue;
                     }
 
-                    ItemCurve<StandardCurveType> logisticCurve = factory.generateCurve(StandardCurveType.LOGISTIC, 0,
-                            new double[]{mean, 1.0 / spread});
+                    QuantileBreakdown reduced = rawQuantiles.rebucket(i);
+                    baseline = doOneExpansion(i, reduced, curveReg, baseline);
 
-                    ItemCurve<StandardCurveType> gaussianCurve = factory.generateCurve(StandardCurveType.GAUSSIAN, 0,
-                            new double[]{mean, spread});
+                    fitter.pushParameters("Expanded[" + i + "][" + curveReg + "]", baseline);
 
-                    ItemCurveParams<SimpleRegressor, StandardCurveType> logisticParams = new ItemCurveParams<>(
-                            -interceptChange,
+                    // Fit coefficients first, because they may be very far from reasonable. Then fit everything.
+                    fitter.fitCoefficients();
+                    FitResult<SimpleStatus, SimpleRegressor, StandardCurveType> result = fitter.fitAllParameters();
+                    baseline = result.getParams();
+                    expandedList.add(result);
+                }
+            }
+        }
+        return Collections.unmodifiableList(expandedList);
+    }
+
+    private ItemParameters<SimpleStatus, SimpleRegressor, StandardCurveType> doOneExpansion(final int quantileCount_,
+                                                                                            QuantileBreakdown reduced,
+                                                                                            SimpleRegressor curveReg,
+                                                                                            final ItemParameters<SimpleStatus, SimpleRegressor, StandardCurveType> input)
+    {
+        ItemParameters<SimpleStatus, SimpleRegressor, StandardCurveType> baseline = input;
+
+        for (int j = 1; j < quantileCount_ - 1; j++)
+        {
+            final double mean = reduced.getBucketMean(j);
+            final double spread = 0.5 * (reduced.getBucketMean(j + 1) - reduced.getBucketMean(j - 1));
+
+            if (Double.isNaN(spread) || spread == 0.0)
+            {
+                continue;
+            }
+
+            final double smallChange = 1.0;
+            final double interceptChange = 0.0; //-smallChange / i;
+
+            final StandardCurveFactory factory = StandardCurveType.LOGISTIC.getFactory();
+            ItemCurve<StandardCurveType> logisticCurve = factory.generateCurve(StandardCurveType.LOGISTIC, 0,
+                    new double[]{mean, 1.0 / spread});
+
+            ItemCurve<StandardCurveType> gaussianCurve = factory.generateCurve(StandardCurveType.GAUSSIAN, 0,
+                    new double[]{mean, spread});
+
+            ItemCurveParams<SimpleRegressor, StandardCurveType> logisticParams = new ItemCurveParams<>(
+                    -interceptChange,
+                    smallChange,
+                    curveReg,
+                    logisticCurve);
+
+            ItemCurveParams<SimpleRegressor, StandardCurveType> gaussianParams =
+                    new ItemCurveParams<>(-interceptChange,
                             smallChange,
                             curveReg,
-                            logisticCurve);
+                            gaussianCurve);
 
-                    ItemCurveParams<SimpleRegressor, StandardCurveType> gaussianParams =
-                            new ItemCurveParams<>(-interceptChange,
-                                    smallChange,
-                                    curveReg,
-                                    gaussianCurve);
 
-                    for (SimpleStatus toStatus : bestParams.getStatus().getFamily().getMembers())
-                    {
-                        if (toStatus.equals(bestParams.getStatus()))
-                        {
-                            continue;
-                        }
+            final SimpleStatus fromStatus = baseline.getStatus();
 
-                        baseline = baseline.addBeta(logisticParams, toStatus);
-                        baseline = baseline.addBeta(gaussianParams, toStatus);
-                    }
+            for (SimpleStatus toStatus : fromStatus.getFamily().getMembers())
+            {
+                if (toStatus.equals(fromStatus))
+                {
+                    continue;
                 }
 
-                fitter.pushParameters("Expanded[" + i + "][" + curveReg + "]", baseline);
-
-                // Fit coefficients first, because they may be very far from reasonable. Then fit everything.
-                fitter.fitCoefficients();
-                FitResult<SimpleStatus, SimpleRegressor, StandardCurveType> result = fitter.fitAllParameters();
-                baseline = result.getParams();
-                expandedList.add(result);
+                baseline = baseline.addBeta(logisticParams, toStatus);
+                baseline = baseline.addBeta(gaussianParams, toStatus);
             }
         }
 
-        return Collections.unmodifiableList(expandedList);
+        return baseline;
     }
 
 
@@ -656,7 +687,7 @@ public final class ItemFitGenerator
 
         ItemFitGenerator gen = new ItemFitGenerator(
                 new File("/Users/tyler/sync-workspace/code/item_test"));
-                //new File("./"));
+        //new File("./"));
 
         //gen.convertFits();
         gen.generateFits(numFits, maxParams);
