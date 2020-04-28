@@ -685,9 +685,32 @@ public final class ItemFitGenerator
         final int maxParams = 30;
         final int numFits = 20;
 
-        ItemFitGenerator gen = new ItemFitGenerator(
-                new File("/Users/tyler/sync-workspace/code/item_test"));
-        //new File("./"));
+        if (args.length > 1)
+        {
+            System.out.println("Usage: ItemFitGenerator [outputDir]");
+            return;
+        }
+
+        final File baseDir;
+
+        if (args.length > 0)
+        {
+            baseDir = new File(args[0]);
+        }
+        else
+        {
+            baseDir = new File(".");
+        }
+
+        if (!baseDir.exists())
+        {
+            throw new IllegalArgumentException("Base dir must exist: " + baseDir.getAbsolutePath());
+        }
+
+        final File dataDir = new File(baseDir, "fit_generator_results");
+        dataDir.mkdir();
+
+        ItemFitGenerator gen = new ItemFitGenerator(dataDir);
 
         //gen.convertFits();
         gen.generateFits(numFits, maxParams);
