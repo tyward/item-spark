@@ -8,7 +8,7 @@
     <packaging>jar</packaging>
     <name>ITEM Spark Adapter</name>
     <description>A statistical model for automatic fitting against large data sets.</description>
-    <url>http://arxiv.org/submit/1105771</url>
+    <url>https://arxiv.org/abs/1409.6075</url>
     <scm>
         <connection>scm:git:git@github.com:tyward/item.git</connection>
         <developerConnection>scm:git:git@github.com:tyward/item.git</developerConnection>
