@@ -257,6 +257,12 @@ public class ItemClassifier
         return classificationModel;
     }
 
+//    public ItemClassificationModel generateModel(final Dataset<?> data_, final ItemParameters<SimpleStatus,
+//            SimpleRegressor,
+//            StandardCurveType> params_) {
+//        final FitResult<SimpleStatus, SimpleRegressor, StandardCurveType> fitResult =
+//                fitter.getChain().getLatestResults();
+//    }
 
     @Override
     public ItemClassificationModel train(final Dataset<?> data_)

@@ -27,8 +27,10 @@ import edu.columbia.tjw.item.base.StandardCurveFactory;
 import edu.columbia.tjw.item.base.StandardCurveType;
 import edu.columbia.tjw.item.util.EnumFamily;
 
-import java.io.Serializable;
+import java.io.*;
 import java.util.*;
+import java.util.zip.GZIPInputStream;
+import java.util.zip.GZIPOutputStream;
 
 /**
  * All the collected settings needed in order to run the ItemClassifier.
@@ -170,6 +172,34 @@ public final class ItemClassifierSettings implements Serializable
     public Set<SimpleRegressor> getNonCurveRegressors()
     {
         return _nonCurveRegressors;
+    }
+
+    public void save(final String fileName_) throws IOException
+    {
+        try (final FileOutputStream fout = new FileOutputStream(fileName_);
+             final GZIPOutputStream zipOut = new GZIPOutputStream(fout);
+             final ObjectOutputStream oOut = new ObjectOutputStream(zipOut);)
+        {
+            oOut.writeObject(this);
+        }
+    }
+
+
+    public static ItemClassifierSettings load(final String filename_) throws IOException
+    {
+        try (final FileInputStream fIn = new FileInputStream(filename_);
+             final GZIPInputStream zipIn = new GZIPInputStream(fIn);
+             final ObjectInputStream oIn = new ObjectInputStream(zipIn))
+        {
+
+            return (ItemClassifierSettings) oIn.readObject();
+        }
+        catch (ClassNotFoundException e)
+        {
+            throw new IOException("Unable to load unknown class.", e);
+        }
+
+
     }
 
 }
