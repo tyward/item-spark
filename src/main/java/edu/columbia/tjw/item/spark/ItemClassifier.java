@@ -107,7 +107,7 @@ public class ItemClassifier
 
         final ItemFitter<SimpleStatus, SimpleRegressor, StandardCurveType> fitter = new ItemFitter<>(
                 _settings.getFactory(),
-                _settings.getIntercept(), _settings.getFromStatus(), data, _settings.getSettings());
+                _settings.getIntercept().getFamily(), _settings.getFromStatus(), data, _settings.getSettings());
 
         return fitter;
     }
