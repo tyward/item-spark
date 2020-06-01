@@ -39,6 +39,7 @@ class IcePerceptronClassifierTest
         Dataset<Row> fitting = datasets[0].limit(10 * 1000);
         Dataset<Row> testing = datasets[1];
 
+        final ClassificationModel mlpModel;
         final ClassificationModel iceModel;
 
         {
@@ -48,13 +49,28 @@ class IcePerceptronClassifierTest
             iceModel = iceFitter.fit(fitting);
         }
 
+        {
+            MultilayerPerceptronClassifier mlpFitter = new MultilayerPerceptronClassifier().setLabelCol("NEXT_STATUS");
+            mlpFitter.setLayers(new int[]{inputCols.length, 5, 3}).setSeed(1234L).setLabelCol("NEXT_STATUS")
+                    .setMaxIter(10).setSolver("l-bfgs");
+            mlpModel = mlpFitter.fit(fitting);
+        }
+
         Dataset<Row> fitEvalIce = evaluate(spark, fitting, iceModel);
         Dataset<Row> testEvalIce = evaluate(spark, testing, iceModel);
+
+        Dataset<Row> fitEvalMlp = evaluate(spark, fitting, mlpModel);
+        Dataset<Row> testEvaMlp = evaluate(spark, testing, mlpModel);
 
         System.out.println("Fitting eval ICE.");
         fitEvalIce.show();
         System.out.println("Testing eval ICE.");
         testEvalIce.show();
+
+        System.out.println("Fitting eval ICE.");
+        fitEvalMlp.show();
+        System.out.println("Testing eval ICE.");
+        testEvaMlp.show();
     }
 
     private Dataset<Row> generateData(final SparkSession spark)

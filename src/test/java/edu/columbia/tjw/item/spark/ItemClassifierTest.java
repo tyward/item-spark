@@ -33,11 +33,6 @@ public class ItemClassifierTest
 
         Dataset<Row> frame = generateData(spark);
 
-
-//        String[] inputCols = new String[]{"AGE", "MTM_LTV", "INCENTIVE", "CREDIT_SCORE", "FIRSTTIME_BUYER", "TERM",
-//                "MI_PERCENT", "UNIT_COUNT", "ORIG_CLTV", "ORIG_DTI", "ORIG_UPB", "ORIG_INTRATE",
-//                "PREPAYMENT_PENALTY"};
-
         List<String> inputCols = Arrays.asList("MTM_LTV", "INCENTIVE", "FIRSTTIME_BUYER",
                 "UNIT_COUNT", "ORIG_CLTV", "ORIG_DTI", "ORIG_INTRATE", "PREPAYMENT_PENALTY");
 
