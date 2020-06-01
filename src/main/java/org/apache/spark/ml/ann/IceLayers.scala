@@ -26,12 +26,12 @@ private[ann] trait IceLossFunction {
    * @param delta  delta (updated in place)
    * @return loss
    */
-  def loss(output: BDM[Double], target: BDM[Double], delta: BDM[Double], gradRatio: BDM[Double]): Double
+  def loss(output: BDM[Double], target: BDM[Double], delta: BDM[Double], gammas: BDM[Double]): Double
 }
 
 private[ann] trait GeneralIceLayerModel extends LayerModel {
 
-  def computePrevDeltaExpanded(delta: BDM[Double], gradRatio: BDM[Double], output: BDM[Double], prevDelta: BDM[Double]): Unit
+  def computePrevDeltaExpanded(delta: BDM[Double], gammas: BDM[Double], output: BDM[Double], prevDelta: BDM[Double]): Unit
 
   def grad2(delta: BDM[Double], input: BDM[Double], cumGrad: BDV[Double], cumG2: BDM[Double]): Unit
 
@@ -63,7 +63,7 @@ private[ml] class IceFeedForwardModel private(
   }
   private var outputs: Array[BDM[Double]] = null
   private var deltas: Array[BDM[Double]] = null
-  private var gradRatio: Array[BDM[Double]] = null
+  private var gammas: Array[BDM[Double]] = null
 
   override def forward(data: BDM[Double], includeLastLayer: Boolean): Array[BDM[Double]] = {
     // Initialize output arrays for all layers. Special treatment for InPlace
@@ -100,31 +100,31 @@ private[ml] class IceFeedForwardModel private(
     // TODO: allocate deltas as one big array and then create BDMs from it
     if (deltas == null || deltas(0).cols != currentBatchSize) {
       deltas = new Array[BDM[Double]](layerModels.length)
-      gradRatio = new Array[BDM[Double]](layerModels.length)
+      gammas = new Array[BDM[Double]](layerModels.length)
       var inputSize = data.rows
       for (i <- 0 until layerModels.length - 1) {
         val outputSize = layers(i).getOutputSize(inputSize)
         deltas(i) = new BDM[Double](outputSize, currentBatchSize)
-        gradRatio(i) = new BDM[Double](outputSize, currentBatchSize)
+        gammas(i) = new BDM[Double](outputSize, currentBatchSize)
         inputSize = outputSize
       }
     }
     val L = layerModels.length - 1
     // TODO: explain why delta of top layer is null (because it might contain loss+layer)
     val loss = layerModels.last match {
-      case levelWithError: IceLossFunction => levelWithError.loss(outputs.last, target, deltas(L - 1), gradRatio(L - 1))
+      case levelWithError: IceLossFunction => levelWithError.loss(outputs.last, target, deltas(L - 1), gammas(L - 1))
       case _ =>
         throw new UnsupportedOperationException("Top layer is required to have objective.")
     }
     for (i <- (L - 2) to(0, -1)) {
-      typedLayerModels(i + 1).computePrevDeltaExpanded(deltas(i + 1), gradRatio(i), outputs(i + 1), deltas(i))
+      typedLayerModels(i + 1).computePrevDeltaExpanded(deltas(i + 1), gammas(i), outputs(i + 1), deltas(i))
     }
     val cumGradientArray = cumGradient.toArray
     var offset = 0
     for (i <- 0 until layerModels.length) {
       val input = if (i == 0) data else outputs(i - 1)
       typedLayerModels(i).grad2(deltas(i), input,
-        new BDV[Double](cumGradientArray, offset, 1, layers(i).weightSize), gradRatio(i))
+        new BDV[Double](cumGradientArray, offset, 1, layers(i).weightSize), gammas(i))
       offset += layers(i).weightSize
     }
     loss
