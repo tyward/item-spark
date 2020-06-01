@@ -31,7 +31,7 @@ private[ann] trait IceLossFunction {
 
 private[ann] trait GeneralIceLayerModel extends LayerModel {
 
-  def computePrevDeltaExpanded(delta: BDM[Double], gammas: BDM[Double], output: BDM[Double], prevDelta: BDM[Double]): Unit
+  def computePrevDeltaExpanded(delta: BDM[Double], gammas: BDM[Double], output: BDM[Double], prevDelta: BDM[Double], prevGamma : BDM[Double]): Unit
 
   def grad2(delta: BDM[Double], input: BDM[Double], cumGrad: BDV[Double], cumG2: BDM[Double]): Unit
 
@@ -117,7 +117,7 @@ private[ml] class IceFeedForwardModel private(
         throw new UnsupportedOperationException("Top layer is required to have objective.")
     }
     for (i <- (L - 2) to(0, -1)) {
-      typedLayerModels(i + 1).computePrevDeltaExpanded(deltas(i + 1), gammas(i), outputs(i + 1), deltas(i))
+      typedLayerModels(i + 1).computePrevDeltaExpanded(deltas(i + 1), gammas(i+1), outputs(i + 1), deltas(i), gammas(i))
     }
     val cumGradientArray = cumGradient.toArray
     var offset = 0

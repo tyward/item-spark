@@ -54,9 +54,9 @@ private[ann] class IceLayerLayerModel private[ann](val layer: IceSigmoidLayer)
     grad(delta, input, cumGrad)
   }
 
-  override def computePrevDeltaExpanded(delta: BDM[Double], gradRatio: BDM[Double], output: BDM[Double], prevDelta: BDM[Double]): Unit = {
+  override def computePrevDeltaExpanded(delta: BDM[Double], gamma: BDM[Double], output: BDM[Double], prevDelta: BDM[Double], prevGamma: BDM[Double]): Unit = {
     computePrevDelta(delta, output, prevDelta);
-    ApplyInPlace(output, gradRatio, layer.activationFunction.secondDerivativeRatio);
+    //ApplyInPlace(output, gradRatio, layer.activationFunction.secondDerivativeRatio);
   }
 }
 
@@ -72,8 +72,10 @@ private[ann] class SigmoidFunctionIce extends ActivationFunction {
     (1 - z) * z
   }
 
-  def secondDerivativeRatio: (Double) => Double = z => {
+  def secondDerivative: (Double) => Double = z => {
     // this is f'' / f', which happens to have a really simple form.
-    (1 - 2*z)
+    val ratio = (1 - 2*z);
+
+    (ratio * derivative(z))
   }
 }

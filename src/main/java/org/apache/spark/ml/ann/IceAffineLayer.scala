@@ -67,7 +67,7 @@ private[ann] class IceAffineLayerModel private[ann](
     grad(delta, input, cumGrad)
   }
 
-  override def computePrevDeltaExpanded(delta: BDM[Double], gradRatio: BDM[Double], output: BDM[Double], prevDelta: BDM[Double]): Unit = {
+  override def computePrevDeltaExpanded(delta: BDM[Double], gamma: BDM[Double], output: BDM[Double], prevDelta: BDM[Double], prevGamma: BDM[Double]): Unit = {
     computePrevDelta(delta, output, prevDelta);
     // Nothing special here....
   }
