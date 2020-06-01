@@ -12,31 +12,29 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- * 
+ *
  * This code is part of the reference implementation of http://arxiv.org/abs/1409.6075
- * 
+ *
  * This is provided as an example to help in the understanding of the ITEM model system.
  */
 package edu.columbia.tjw.item.spark;
 
-import edu.columbia.tjw.item.base.raw.RawReader;
 import edu.columbia.tjw.item.ItemRegressorReader;
 import edu.columbia.tjw.item.base.SimpleRegressor;
 import edu.columbia.tjw.item.base.SimpleStatus;
+import edu.columbia.tjw.item.base.raw.RawReader;
 import edu.columbia.tjw.item.data.ItemStatusGrid;
 import edu.columbia.tjw.item.util.EnumFamily;
+import org.apache.spark.ml.linalg.Vector;
+import org.apache.spark.sql.Dataset;
+import org.apache.spark.sql.Row;
 
 import java.io.Serializable;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
 
-import org.apache.spark.ml.linalg.Vector;
-import org.apache.spark.sql.Dataset;
-import org.apache.spark.sql.Row;
-
 /**
- *
  * @author tyler
  */
 public class SparkGridAdapter implements ItemStatusGrid<SimpleStatus, SimpleRegressor>, Serializable
@@ -47,13 +45,14 @@ public class SparkGridAdapter implements ItemStatusGrid<SimpleStatus, SimpleRegr
     private final ItemRegressorReader[] _readers;
 
     public SparkGridAdapter(final Dataset<?> data_, final String labelColumn_,
-            final String featureColumn_, final List<SimpleRegressor> regressors_, final SimpleStatus fromStatus_, final SimpleRegressor intercept_)
+                            final String featureColumn_, final List<SimpleRegressor> regressors_,
+                            final SimpleStatus fromStatus_, EnumFamily<SimpleRegressor> regFamily_)
     {
         _fromStatus = fromStatus_;
         final int rowCount = (int) data_.count();
         final int regCount = regressors_.size();
 
-        _regFamily = intercept_.getFamily();
+        _regFamily = regFamily_;
         _readers = new ItemRegressorReader[_regFamily.size()];
 
         final Iterator<Row> rowForm = (Iterator<Row>) data_.toLocalIterator();
@@ -81,7 +80,8 @@ public class SparkGridAdapter implements ItemStatusGrid<SimpleStatus, SimpleRegr
 
             final SimpleStatus toStatus = _fromStatus.getFamily().getFromName(label);
 
-            if(null == toStatus) {
+            if (null == toStatus)
+            {
                 throw new NullPointerException("Unable to find status label: '" + label + "'");
             }
 
@@ -92,11 +92,13 @@ public class SparkGridAdapter implements ItemStatusGrid<SimpleStatus, SimpleRegr
         for (int i = 0; i < regCount; i++)
         {
             final SimpleRegressor reg = regressors_.get(i);
+
+
             final RawReader wrapped = new RawReader(transposed[i]);
             _readers[reg.ordinal()] = wrapped;
         }
 
-        _readers[intercept_.ordinal()] = new InterceptReader(rowCount);
+        //_readers[intercept_.ordinal()] = new NaNReader(rowCount);
     }
 
     @Override
@@ -124,7 +126,8 @@ public class SparkGridAdapter implements ItemStatusGrid<SimpleStatus, SimpleRegr
     }
 
     @Override
-    public Set<SimpleRegressor> getAvailableRegressors() {
+    public Set<SimpleRegressor> getAvailableRegressors()
+    {
         return _regFamily.getMembers();
     }
 
@@ -145,34 +148,34 @@ public class SparkGridAdapter implements ItemStatusGrid<SimpleStatus, SimpleRegr
     {
         return _regFamily;
     }
-
-    private static final class InterceptReader implements ItemRegressorReader, Serializable
-    {
-        private final int _size;
-
-        public InterceptReader(final int size_)
-        {
-            _size = size_;
-        }
-
-        @Override
-        public double asDouble(int index_)
-        {
-            if (index_ < 0 || index_ >= _size)
-            {
-                throw new ArrayIndexOutOfBoundsException("Index out of bounds[0, " + _size + "): " + index_);
-            }
-
-            return 1.0;
-        }
-
-        @Override
-        public int size()
-        {
-            return _size;
-        }
-
-    }
+//
+//    private static final class NaNReader implements ItemRegressorReader, Serializable
+//    {
+//        private final int _size;
+//
+//        public NaNReader(final int size_)
+//        {
+//            _size = size_;
+//        }
+//
+//        @Override
+//        public double asDouble(int index_)
+//        {
+//            if (index_ < 0 || index_ >= _size)
+//            {
+//                throw new ArrayIndexOutOfBoundsException("Index out of bounds[0, " + _size + "): " + index_);
+//            }
+//
+//            return Double.NaN;
+//        }
+//
+//        @Override
+//        public int size()
+//        {
+//            return _size;
+//        }
+//
+//    }
 
 
 }

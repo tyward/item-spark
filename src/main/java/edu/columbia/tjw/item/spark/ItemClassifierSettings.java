@@ -41,15 +41,19 @@ public final class ItemClassifierSettings implements Serializable
 {
     private static final long serialVersionUID = 0xc6964a7d0bbd3449L;
 
-
     public ItemSettings _settings;
     private final SimpleStatus _fromStatus;
+
+    @Deprecated
     private final SimpleRegressor _intercept;
+
     private final ItemCurveFactory<SimpleRegressor, StandardCurveType> _factory;
     private final int _maxParamCount;
     private final List<SimpleRegressor> _regressors;
     private final SortedSet<SimpleRegressor> _curveRegressors;
     private final Set<SimpleRegressor> _nonCurveRegressors;
+
+    private final EnumFamily<SimpleRegressor> _regFamily;
 
     public ItemClassifierSettings(final ItemClassifierSettings base_, final ItemSettings settings_)
     {
@@ -61,14 +65,22 @@ public final class ItemClassifierSettings implements Serializable
         _regressors = base_._regressors;
         _curveRegressors = base_._curveRegressors;
         _nonCurveRegressors = base_._nonCurveRegressors;
+
+        // N.B: Added to allow loading of previous version of ItemClassifierSettings
+        if (base_._regFamily == null)
+        {
+            _regFamily = base_._intercept.getFamily();
+        }
+        else
+        {
+            _regFamily = base_._regFamily;
+        }
     }
 
     /**
      * Use this to construct settings unless you really know what you're doing.
      *
      * @param settings_        Item settings to use, can be null.
-     * @param intercept_       Which regressor will be the intercept. You don't need
-     *                         to specify this in the data, it will be assumed to be 1.0 always.
      * @param status_          Which status are we projecting from (only interesting for
      *                         markov chains, just make a simple 2 status family if in doubt).
      * @param maxParamCount_   How many parameters is the model allowed to use.
@@ -78,7 +90,7 @@ public final class ItemClassifierSettings implements Serializable
      * @param curveRegressors_ The regressors that can support curves (i.e. they
      *                         are not binary flags), order doesn't matter for these.
      */
-    public ItemClassifierSettings(final ItemSettings settings_, final String intercept_,
+    public ItemClassifierSettings(final ItemSettings settings_,
                                   final SimpleStatus status_, final int maxParamCount_, final List<String> regressors_,
                                   final Set<String> curveRegressors_)
     {
@@ -92,20 +104,20 @@ public final class ItemClassifierSettings implements Serializable
         }
 
         // First, make the regressor family.
-        EnumFamily<SimpleRegressor> regFamily = SimpleRegressor.generateFamily(regressors_);
+        _regFamily = SimpleRegressor.generateFamily(regressors_);
 
         _factory = new StandardCurveFactory<>();
         _fromStatus = status_;
-        _intercept = regFamily.getFromName(intercept_);
+        _intercept = null;
         _maxParamCount = maxParamCount_;
 
-        _regressors = Collections.unmodifiableList(new ArrayList<>(regFamily.getMembers()));
+        _regressors = Collections.unmodifiableList(new ArrayList<>(_regFamily.getMembers()));
 
         SortedSet<SimpleRegressor> curveSet = new TreeSet<>();
 
         for (final String next : curveRegressors_)
         {
-            curveSet.add(regFamily.getFromName(next));
+            curveSet.add(_regFamily.getFromName(next));
         }
         _curveRegressors = Collections.unmodifiableSortedSet(curveSet);
 
@@ -121,7 +133,7 @@ public final class ItemClassifierSettings implements Serializable
 
         _nonCurveRegressors = Collections.unmodifiableSortedSet(nonCurveRegressors);
 
-        if ((_nonCurveRegressors.size() + _curveRegressors.size() + 1) != _regressors.size())
+        if ((_nonCurveRegressors.size() + _curveRegressors.size()) != _regressors.size())
         {
             // Either _regressors has some repeated items, or curveRegressors contains items that are not in the
             // regressors list.
@@ -144,9 +156,9 @@ public final class ItemClassifierSettings implements Serializable
         return _fromStatus;
     }
 
-    public SimpleRegressor getIntercept()
+    public EnumFamily<SimpleRegressor> getRegressorFamily()
     {
-        return _intercept;
+        return _regFamily;
     }
 
     public ItemCurveFactory<SimpleRegressor, StandardCurveType> getFactory()
@@ -191,15 +203,20 @@ public final class ItemClassifierSettings implements Serializable
              final GZIPInputStream zipIn = new GZIPInputStream(fIn);
              final ObjectInputStream oIn = new ObjectInputStream(zipIn))
         {
+            final ItemClassifierSettings settings = (ItemClassifierSettings) oIn.readObject();
 
-            return (ItemClassifierSettings) oIn.readObject();
+            // N.B: Correcting for change in serialized form.
+            if (settings._regFamily == null)
+            {
+                return new ItemClassifierSettings(settings, settings.getSettings());
+            }
+
+            return settings;
         }
         catch (ClassNotFoundException e)
         {
             throw new IOException("Unable to load unknown class.", e);
         }
-
-
     }
 
 }

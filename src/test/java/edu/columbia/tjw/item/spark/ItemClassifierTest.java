@@ -1,7 +1,7 @@
-package org.apache.spark.ml.classification;
+package edu.columbia.tjw.item.spark;
 
 import org.apache.spark.SparkContext;
-import org.apache.spark.ml.feature.VectorAssembler;
+import org.apache.spark.ml.classification.ClassificationModel;
 import org.apache.spark.ml.linalg.DenseVector;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
@@ -10,11 +10,16 @@ import org.apache.spark.sql.functions;
 import org.apache.spark.sql.types.DataTypes;
 import org.junit.jupiter.api.Test;
 
-class IcePerceptronClassifierTest
+import java.util.Arrays;
+import java.util.List;
+import java.util.SortedSet;
+import java.util.TreeSet;
+
+public class ItemClassifierTest
 {
 
     @Test
-    void vacuousTest() throws Exception
+    public void testBasicClassifier()
     {
         final SparkSession spark = SparkSession.builder()
                 .master("local")
@@ -33,50 +38,38 @@ class IcePerceptronClassifierTest
 //                "MI_PERCENT", "UNIT_COUNT", "ORIG_CLTV", "ORIG_DTI", "ORIG_UPB", "ORIG_INTRATE",
 //                "PREPAYMENT_PENALTY"};
 
-        String[] inputCols = new String[]{"MTM_LTV", "INCENTIVE", "FIRSTTIME_BUYER",
-                "UNIT_COUNT", "ORIG_CLTV", "ORIG_DTI", "ORIG_INTRATE", "PREPAYMENT_PENALTY"};
+        List<String> inputCols = Arrays.asList("MTM_LTV", "INCENTIVE", "FIRSTTIME_BUYER",
+                "UNIT_COUNT", "ORIG_CLTV", "ORIG_DTI", "ORIG_INTRATE", "PREPAYMENT_PENALTY");
 
-        VectorAssembler assembler =
-                new VectorAssembler().setInputCols(inputCols).setOutputCol("features").setHandleInvalid("skip");
-        Dataset<Row> transformed = assembler.transform(frame);
-        Dataset<Row>[] datasets = transformed.randomSplit(new double[]{0.25, 0.75}, 12345);
+        SortedSet<String> curveColumns = new TreeSet<>(inputCols);
+
+        ItemClassifierSettings settings = ItemClassifier.prepareSettings(frame, "NEXT_STATUS", inputCols,
+                curveColumns,
+                10);
+
+        Dataset<Row> itemAssembled = ItemClassifier.prepareData(frame, settings, "features");
+        Dataset<Row>[] datasets = itemAssembled.randomSplit(new double[]{0.25, 0.75}, 12345);
 
         Dataset<Row> fitting = datasets[0].limit(10 * 1000);
         Dataset<Row> testing = datasets[1];
 
-        final ClassificationModel mlpModel;
-        final ClassificationModel iceModel;
+        final ClassificationModel itemModel;
 
-//        {
-//            MultilayerPerceptronClassifier mlp_fitter = new MultilayerPerceptronClassifier().setLabelCol("NEXT_STATUS");
-//            mlp_fitter.setLayers(new int[]{inputCols.length, 5, 3}).setSeed(1234L).setLabelCol("NEXT_STATUS")
-//                    .setMaxIter(10).setSolver("l-bfgs");
-//            mlpModel = mlp_fitter.fit(fitting);
-//        }
 
         {
-            IcePerceptronClassifier iceFitter = new IcePerceptronClassifier().setLabelCol("NEXT_STATUS");
-            iceFitter.setLayers(new int[]{inputCols.length, 5, 3}).setSeed(1234L).setLabelCol("NEXT_STATUS")
-                    .setMaxIter(10).setSolver("l-bfgs");
-            iceModel = iceFitter.fit(fitting);
+            ItemClassifier classifier = new ItemClassifier(settings).setLabelCol("NEXT_STATUS").setFeaturesCol(
+                    "features");
+
+            itemModel = classifier.fit(fitting);
         }
 
-//        Dataset<Row> fitEvalMlp = evaluate(spark, fitting, mlpModel);
-//        Dataset<Row> testEvalMlp = evaluate(spark, testing, mlpModel);
 
-        Dataset<Row> fitEvalIce = evaluate(spark, fitting, iceModel);
-        Dataset<Row> testEvalIce = evaluate(spark, testing, iceModel);
+        Dataset<Row> fitEvalItem = evaluate(spark, testing, itemModel);
 
-//        System.out.println("Fitting eval MLP.");
-//        fitEvalMlp.show();
-//        System.out.println("Testing eval MLP.");
-//        testEvalMlp.show();
-
-        System.out.println("Fitting eval ICE.");
-        fitEvalIce.show();
         System.out.println("Testing eval ICE.");
-        testEvalIce.show();
+        fitEvalItem.show();
     }
+
 
     private Dataset<Row> generateData(final SparkSession spark)
     {
@@ -102,6 +95,7 @@ class IcePerceptronClassifierTest
         frame = frame.withColumn("actual_3", functions.expr(" case when next_status = 2 then 1.0 else 0.0 end"));
         return frame;
     }
+
 
     private Dataset<Row> evaluate(final SparkSession spark, Dataset<Row> data,
                                   ClassificationModel model)
