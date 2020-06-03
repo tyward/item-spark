@@ -71,6 +71,10 @@ private[ann] class IceAffineLayerModel private[ann](
     computePrevDelta(delta, output, prevDelta);
     // Nothing special here....
   }
+
+  override def setNextWeights(weights: BDV[Double]): Unit = {
+    // Do nothing, this will not be called.
+  }
 }
 
 /**

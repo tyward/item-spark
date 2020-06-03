@@ -19,7 +19,7 @@ private[ann] class IceSigmoidLayer extends GeneralIceLayer {
 
   override val inPlace = true
 
-  override def createModel(weights: BDV[Double]): GeneralIceLayerModel = new IceLayerLayerModel(this)
+  override def createModel(weights: BDV[Double]): GeneralIceLayerModel = new IceSigmoidLayerModel(this)
 
   override def initModel(weights: BDV[Double], random: Random): GeneralIceLayerModel =
     createModel(weights)
@@ -30,7 +30,7 @@ private[ann] class IceSigmoidLayer extends GeneralIceLayer {
  *
  * @param layer functional layer
  */
-private[ann] class IceLayerLayerModel private[ann](val layer: IceSigmoidLayer)
+private[ann] class IceSigmoidLayerModel private[ann](val layer: IceSigmoidLayer)
   extends GeneralIceLayerModel {
 
   // empty weights
@@ -57,6 +57,10 @@ private[ann] class IceLayerLayerModel private[ann](val layer: IceSigmoidLayer)
   override def computePrevDeltaExpanded(delta: BDM[Double], gamma: BDM[Double], output: BDM[Double], prevDelta: BDM[Double], prevGamma: BDM[Double]): Unit = {
     computePrevDelta(delta, output, prevDelta);
     //ApplyInPlace(output, gradRatio, layer.activationFunction.secondDerivativeRatio);
+  }
+
+  override def setNextWeights(weights: BDV[Double]): Unit = {
+    // TBD
   }
 }
 

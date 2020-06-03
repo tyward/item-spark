@@ -31,10 +31,11 @@ private[ann] trait IceLossFunction {
 
 private[ann] trait GeneralIceLayerModel extends LayerModel {
 
-  def computePrevDeltaExpanded(delta: BDM[Double], gammas: BDM[Double], output: BDM[Double], prevDelta: BDM[Double], prevGamma : BDM[Double]): Unit
+  def computePrevDeltaExpanded(delta: BDM[Double], gammas: BDM[Double], output: BDM[Double], prevDelta: BDM[Double], prevGamma: BDM[Double]): Unit
 
   def grad2(delta: BDM[Double], input: BDM[Double], cumGrad: BDV[Double], cumG2: BDM[Double]): Unit
 
+  def setNextWeights(weights: BDV[Double]): Unit
 }
 
 /**
@@ -54,12 +55,25 @@ private[ml] class IceFeedForwardModel private(
   val layerModels = new Array[LayerModel](layers.length)
 
   private var offset = 0
+  private var currWeights = new BDV[Double](weights.toArray, offset, 1, 0)
+
   for (i <- 0 until typedLayers.length) {
     layers(i) = typedLayers(i);
-    typedLayerModels(i) = typedLayers(i).createModel(
-      new BDV[Double](weights.toArray, offset, 1, typedLayers(i).weightSize))
+
+    val weightSize = typedLayers(i).weightSize;
+
+    if (weightSize > 0) {
+      currWeights = new BDV[Double](weights.toArray, offset, 1, typedLayers(i).weightSize)
+    }
+
+    typedLayerModels(i) = typedLayers(i).createModel(currWeights)
+
+    if (weightSize > 0 && i > 0) {
+      typedLayerModels(i - 1).setNextWeights(currWeights);
+    }
+
     layerModels(i) = typedLayerModels(i);
-    offset += typedLayers(i).weightSize
+    offset += weightSize
   }
   private var outputs: Array[BDM[Double]] = null
   private var deltas: Array[BDM[Double]] = null
@@ -117,7 +131,7 @@ private[ml] class IceFeedForwardModel private(
         throw new UnsupportedOperationException("Top layer is required to have objective.")
     }
     for (i <- (L - 2) to(0, -1)) {
-      typedLayerModels(i + 1).computePrevDeltaExpanded(deltas(i + 1), gammas(i+1), outputs(i + 1), deltas(i), gammas(i))
+      typedLayerModels(i + 1).computePrevDeltaExpanded(deltas(i + 1), gammas(i + 1), outputs(i + 1), deltas(i), gammas(i))
     }
     val cumGradientArray = cumGradient.toArray
     var offset = 0
@@ -227,7 +241,8 @@ private[ml] object IceFeedForwardTopology {
                             layerSizes: Array[Int]): IceFeedForwardTopology = {
     val layers = new Array[GeneralIceLayer]((layerSizes.length - 1) * 2)
     for (i <- 0 until layerSizes.length - 1) {
-      layers(i * 2) = new IceAffineLayer(layerSizes(i), layerSizes(i + 1))
+      val affineLayer = new IceAffineLayer(layerSizes(i), layerSizes(i + 1))
+      layers(i * 2) = affineLayer
       layers(i * 2 + 1) =
         if (i == layerSizes.length - 2) {
           new IceLossLayer()

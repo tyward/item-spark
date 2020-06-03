@@ -72,32 +72,37 @@ private[ann] class IceCrossEntropyLossLayerModel extends GeneralIceLayerModel wi
     computePrevDelta(delta, output, prevDelta);
   }
 
-  override def loss(output: BDM[Double], target: BDM[Double], delta: BDM[Double], gradRatio: BDM[Double]): Double = {
+  override def loss(output: BDM[Double], target: BDM[Double], delta: BDM[Double], gamma: BDM[Double]): Double = {
     ApplyInPlace(output, target, delta, (o: Double, t: Double) => o - t)
 
-    // Compute the gradient ratio, ugly but should work.
-    var i = 0
-    while (i < target.cols) {
-      var j = 0
-      while (j < target.rows) {
-        val yi = output(j, i);
-        val ti = target(j, i);
-        var di = 0;
+    var i = 0;
+    while(i < target.cols) {
+      var j = 0;
+      var dot : Double = 0.0;
 
-        if(ti == j) {
-          di = 1;
-        }
+      while(j < target.rows) {
+        var t = target(j, i);
+        var o = output(j, i);
 
-        val ratio = yi*(di - yi) / (yi - ti);
-        gradRatio(j, i) = ratio
-
-        j += 1
+        dot += target(j, i) * output(j, i);
+        j += 1;
       }
-      i += 1
+
+      j = 0;
+
+      while(j < target.rows) {
+        gamma(j, i) = (target(j, i) - dot) * output(j, i);
+        j+= 1;
+      }
+
+
+      i += 1;
     }
 
-
-
     -Bsum(target *:* brzlog(output)) / output.cols
+  }
+
+  override def setNextWeights(weights: BDV[Double]): Unit = {
+    // Do nothing, this will not be called.
   }
 }
