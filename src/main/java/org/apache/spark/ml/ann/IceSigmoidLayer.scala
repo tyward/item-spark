@@ -50,18 +50,33 @@ private[ann] class IceSigmoidLayerModel private[ann](val layer: IceSigmoidLayer)
 
   override def grad(delta: BDM[Double], input: BDM[Double], cumGrad: BDV[Double]): Unit = {}
 
-  override def grad2(delta: BDM[Double], input: BDM[Double], cumGrad: BDV[Double], cumG2: BDM[Double]): Unit = {
+  override def grad2(delta: BDM[Double], gamma: BDM[Double], input: BDM[Double], output: BDM[Double], cumGrad: BDV[Double], cumG2: BDV[Double]): Unit = {
     grad(delta, input, cumGrad)
   }
 
-  override def computePrevDeltaExpanded(delta: BDM[Double], gamma: BDM[Double], output: BDM[Double], prevDelta: BDM[Double], prevGamma: BDM[Double]): Unit = {
+  override def computePrevDeltaExpanded(delta: BDM[Double], gamma: BDM[Double], prevOutput: BDM[Double], output: BDM[Double], prevDelta: BDM[Double], prevGamma: BDM[Double]): Unit = {
     computePrevDelta(delta, output, prevDelta);
-    //ApplyInPlace(output, gradRatio, layer.activationFunction.secondDerivativeRatio);
+
+    // Copy gamma -> prevGamma
+    for(i <- 0 until gamma.rows) {
+      for( j <- 0 until gamma.cols) {
+        prevGamma(i,j) = gamma(i,j)
+      }
+    }
   }
 
-  override def setNextWeights(weights: BDV[Double]): Unit = {
-    // TBD
+  override def activationDeriv(input: Double) : Double = {
+    layer.activationFunction.derivative(input)
   }
+
+  override def activationSecondDeriv(input: Double) : Double = {
+    layer.activationFunction.secondDerivative(input)
+  }
+
+  def setNextLayer(nextLayer: GeneralIceLayerModel) : Unit = {
+    // Do nothing.
+  }
+
 }
 
 /**
@@ -78,7 +93,7 @@ private[ann] class SigmoidFunctionIce extends ActivationFunction {
 
   def secondDerivative: (Double) => Double = z => {
     // this is f'' / f', which happens to have a really simple form.
-    val ratio = (1 - 2*z);
+    val ratio = (1 - 2 * z);
 
     (ratio * derivative(z))
   }

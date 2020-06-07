@@ -31,11 +31,30 @@ private[ann] trait IceLossFunction {
 
 private[ann] trait GeneralIceLayerModel extends LayerModel {
 
-  def computePrevDeltaExpanded(delta: BDM[Double], gammas: BDM[Double], output: BDM[Double], prevDelta: BDM[Double], prevGamma: BDM[Double]): Unit
+  def computePrevDeltaExpanded(delta: BDM[Double], gamma: BDM[Double], prevOutput: BDM[Double], output: BDM[Double], prevDelta: BDM[Double], prevGamma: BDM[Double]): Unit
 
-  def grad2(delta: BDM[Double], input: BDM[Double], cumGrad: BDV[Double], cumG2: BDM[Double]): Unit
+  def grad2(delta: BDM[Double], gamma: BDM[Double], input: BDM[Double], output: BDM[Double], cumGrad: BDV[Double], cumG2: BDV[Double]): Unit
 
-  def setNextWeights(weights: BDV[Double]): Unit
+  /**
+   * Derivative of activation function, as a function of the output of the activation function.
+   *
+   * i.e. compute f'(x) as a function of f(x)
+   *
+   * @param input The value of the activation function. (i.e. f(x))
+   * @return The derivative of the activation function (f'(x))
+   */
+  def activationDeriv(input: Double) : Double
+
+  /**
+   * Same as above, expressed in terms of f(x), not x.
+   * @param input
+   * @return
+   */
+  def activationSecondDeriv(input: Double) : Double
+
+  def setNextLayer(nextLayer: GeneralIceLayerModel) : Unit
+
+  //def setNextWeights(weights: BDV[Double]): Unit
 }
 
 /**
@@ -68,9 +87,13 @@ private[ml] class IceFeedForwardModel private(
 
     typedLayerModels(i) = typedLayers(i).createModel(currWeights)
 
-    if (weightSize > 0 && i > 0) {
-      typedLayerModels(i - 1).setNextWeights(currWeights);
+    if(i > 0) {
+      typedLayerModels(i-1).setNextLayer(typedLayerModels(i));
     }
+
+//    if (weightSize > 0 && i > 0) {
+//      typedLayerModels(i - 1).setNextWeights(currWeights);
+//    }
 
     layerModels(i) = typedLayerModels(i);
     offset += weightSize
@@ -131,14 +154,18 @@ private[ml] class IceFeedForwardModel private(
         throw new UnsupportedOperationException("Top layer is required to have objective.")
     }
     for (i <- (L - 2) to(0, -1)) {
-      typedLayerModels(i + 1).computePrevDeltaExpanded(deltas(i + 1), gammas(i + 1), outputs(i + 1), deltas(i), gammas(i))
+      typedLayerModels(i + 1).computePrevDeltaExpanded(deltas(i + 1), gammas(i + 1), outputs(i+2), outputs(i + 1), deltas(i), gammas(i))
     }
     val cumGradientArray = cumGradient.toArray
+    val cumG2Array = cumGradientArray.clone();
+
+
     var offset = 0
     for (i <- 0 until layerModels.length) {
       val input = if (i == 0) data else outputs(i - 1)
-      typedLayerModels(i).grad2(deltas(i), input,
-        new BDV[Double](cumGradientArray, offset, 1, layers(i).weightSize), gammas(i))
+      typedLayerModels(i).grad2(deltas(i), gammas(i), input, outputs(i),
+        new BDV[Double](cumGradientArray, offset, 1, layers(i).weightSize),
+        new BDV[Double](cumG2Array, offset, 1, layers(i).weightSize))
       offset += layers(i).weightSize
     }
     loss

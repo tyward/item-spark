@@ -64,11 +64,11 @@ private[ann] class IceCrossEntropyLossLayerModel extends GeneralIceLayerModel wi
     /* loss layer model does not have weights */
   }
 
-  override def grad2(delta: BDM[Double], input: BDM[Double], cumGrad: BDV[Double], cumG2: BDM[Double]): Unit = {
+  override def grad2(delta: BDM[Double], gamma: BDM[Double], input: BDM[Double], output: BDM[Double], cumGrad: BDV[Double], cumG2: BDV[Double]): Unit = {
     grad(delta, input, cumGrad)
   }
 
-  override def computePrevDeltaExpanded(delta: BDM[Double], gamma: BDM[Double], output: BDM[Double], prevDelta: BDM[Double], prevGamma: BDM[Double]): Unit = {
+  override def computePrevDeltaExpanded(delta: BDM[Double], gamma: BDM[Double], prevOutput: BDM[Double], output: BDM[Double], prevDelta: BDM[Double], prevGamma: BDM[Double]): Unit = {
     computePrevDelta(delta, output, prevDelta);
   }
 
@@ -102,7 +102,17 @@ private[ann] class IceCrossEntropyLossLayerModel extends GeneralIceLayerModel wi
     -Bsum(target *:* brzlog(output)) / output.cols
   }
 
-  override def setNextWeights(weights: BDV[Double]): Unit = {
-    // Do nothing, this will not be called.
+
+  override def activationDeriv(input: Double) : Double = {
+    1.0
   }
+
+  override def activationSecondDeriv(input: Double) : Double = {
+    0.0
+  }
+
+  def setNextLayer(nextLayer: GeneralIceLayerModel) : Unit = {
+    // Do nothing.
+  }
+
 }

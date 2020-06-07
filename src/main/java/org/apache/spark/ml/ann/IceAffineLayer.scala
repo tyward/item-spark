@@ -40,6 +40,8 @@ private[ann] class IceAffineLayerModel private[ann](
 
   private var ones: BDV[Double] = null
 
+  private var nextLayer: GeneralIceLayerModel = null
+
   override def eval(data: BDM[Double], output: BDM[Double]): Unit = {
     output(::, *) := b
     BreezeUtil.dgemm(1.0, w, data, 1.0, output)
@@ -63,18 +65,47 @@ private[ann] class IceAffineLayerModel private[ann](
     BreezeUtil.dgemv(1.0 / input.cols, delta, ones, 1.0, cumGradientOfBias)
   }
 
-  override def grad2(delta: BDM[Double], input: BDM[Double], cumGrad: BDV[Double], cumG2: BDM[Double]): Unit = {
+  override def grad2(delta: BDM[Double], gamma: BDM[Double], input: BDM[Double], output: BDM[Double], cumGrad: BDV[Double], cumG2: BDV[Double]): Unit = {
     grad(delta, input, cumGrad)
   }
 
-  override def computePrevDeltaExpanded(delta: BDM[Double], gamma: BDM[Double], output: BDM[Double], prevDelta: BDM[Double], prevGamma: BDM[Double]): Unit = {
+  override def computePrevDeltaExpanded(delta: BDM[Double], gamma: BDM[Double], prevOutput: BDM[Double], output: BDM[Double], prevDelta: BDM[Double], prevGamma: BDM[Double]): Unit = {
     computePrevDelta(delta, output, prevDelta);
-    // Nothing special here....
+
+    for (m <- 0 until gamma.cols) {
+      //The inner summation.
+      for (i <- 0 until gamma.rows) {
+
+        val gamma_i = gamma(i, m);
+
+        val prevOutput_i = prevOutput(i, m);
+
+        val fprime_i = nextLayer.activationDeriv(prevOutput_i);
+        val fprime2_i = nextLayer.activationSecondDeriv(prevOutput_i)
+        val delta_i = delta(i, m);
+
+        val scale = (gamma_i * fprime_i * fprime_i) + (delta_i * fprime2_i)
+
+        for (k <- 0 until w.cols) {
+          prevGamma(k, i) += scale * w(i, k) * w(i, k)
+        }
+      }
+    }
   }
 
-  override def setNextWeights(weights: BDV[Double]): Unit = {
-    // Do nothing, this will not be called.
+  override def activationDeriv(input: Double): Double = {
+    1.0
   }
+
+  override def activationSecondDeriv(input: Double): Double = {
+    0.0
+  }
+
+  def setNextLayer(nextLayer: GeneralIceLayerModel): Unit = {
+    this.nextLayer = nextLayer
+  }
+
+
 }
 
 /**
