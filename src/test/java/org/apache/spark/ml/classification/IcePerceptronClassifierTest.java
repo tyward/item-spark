@@ -16,7 +16,98 @@ class IcePerceptronClassifierTest
     private static final int BLOCK_SIZE = 128;
 
     @Test
-    void vacuousTest() throws Exception
+    void testMLP() throws Exception
+    {
+        final SparkSession spark = SparkSession.builder()
+            .master("local")
+            .appName("Tree Session")
+            .getOrCreate();
+
+        SparkContext context = spark.sparkContext();
+
+        spark.udf().register("toArrayLambda", (x) -> (((DenseVector) x).toArray()),
+                DataTypes.createArrayType(DataTypes.DoubleType));
+
+        Dataset<Row> frame = generateData(spark);
+
+        String[] inputCols = new String[]{"MTM_LTV", "INCENTIVE", "FIRSTTIME_BUYER",
+                "UNIT_COUNT", "ORIG_CLTV", "ORIG_DTI", "ORIG_INTRATE", "PREPAYMENT_PENALTY"};
+
+        VectorAssembler assembler =
+                new VectorAssembler().setInputCols(inputCols).setOutputCol("features").setHandleInvalid("skip");
+        Dataset<Row> transformed = assembler.transform(frame);
+        Dataset<Row>[] datasets = transformed.randomSplit(new double[]{0.25, 0.75}, 12345);
+
+        Dataset<Row> fitting = datasets[0].limit(10 * 1000);
+        Dataset<Row> testing = datasets[1];
+
+        final ClassificationModel mlpModel;
+
+        {
+            MultilayerPerceptronClassifier mlpFitter = new MultilayerPerceptronClassifier().setLabelCol("NEXT_STATUS");
+            mlpFitter.setLayers(new int[]{inputCols.length, 5, 3}).setSeed(1234L).setLabelCol("NEXT_STATUS")
+                    .setMaxIter(10).setSolver("l-bfgs");
+            mlpModel = mlpFitter.fit(fitting);
+        }
+
+        Dataset<Row> fitEvalMlp = evaluate(spark, fitting, mlpModel);
+        Dataset<Row> testEvaMlp = evaluate(spark, testing, mlpModel);
+
+
+        System.out.println("Fitting eval ICE.");
+        fitEvalMlp.show();
+        System.out.println("Testing eval ICE.");
+        testEvaMlp.show();
+
+
+    }
+
+    @Test
+    void testICE() throws Exception
+    {
+        final SparkSession spark = SparkSession.builder()
+                .master("local")
+                .appName("Tree Session")
+                .getOrCreate();
+
+        SparkContext context = spark.sparkContext();
+
+        spark.udf().register("toArrayLambda", (x) -> (((DenseVector) x).toArray()),
+                DataTypes.createArrayType(DataTypes.DoubleType));
+
+        Dataset<Row> frame = generateData(spark);
+
+        String[] inputCols = new String[]{"MTM_LTV", "INCENTIVE", "FIRSTTIME_BUYER",
+                "UNIT_COUNT", "ORIG_CLTV", "ORIG_DTI", "ORIG_INTRATE", "PREPAYMENT_PENALTY"};
+
+        VectorAssembler assembler =
+                new VectorAssembler().setInputCols(inputCols).setOutputCol("features").setHandleInvalid("skip");
+        Dataset<Row> transformed = assembler.transform(frame);
+        Dataset<Row>[] datasets = transformed.randomSplit(new double[]{0.25, 0.75}, 12345);
+
+        Dataset<Row> fitting = datasets[0].limit(10 * 1000);
+        Dataset<Row> testing = datasets[1];
+
+        final ClassificationModel iceModel;
+
+        {
+            IcePerceptronClassifier iceFitter = new IcePerceptronClassifier().setLabelCol("NEXT_STATUS");
+            iceFitter.setLayers(new int[]{inputCols.length, 5, 3}).setSeed(1234L).setLabelCol("NEXT_STATUS")
+                    .setMaxIter(10).setBlockSize(BLOCK_SIZE).setSolver("l-bfgs");
+            iceModel = iceFitter.fit(fitting);
+        }
+
+        Dataset<Row> fitEvalIce = evaluate(spark, fitting, iceModel);
+        Dataset<Row> testEvalIce = evaluate(spark, testing, iceModel);
+
+        System.out.println("Fitting eval ICE.");
+        fitEvalIce.show();
+        System.out.println("Testing eval ICE.");
+        testEvalIce.show();
+    }
+
+    @Test
+    void testCombined() throws Exception
     {
         final SparkSession spark = SparkSession.builder()
                 .master("local")
