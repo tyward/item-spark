@@ -12,6 +12,8 @@ import org.junit.jupiter.api.Test;
 
 class IcePerceptronClassifierTest
 {
+    //private static final int BLOCK_SIZE = 4096;
+    private static final int BLOCK_SIZE = 128;
 
     @Test
     void vacuousTest() throws Exception
@@ -45,7 +47,7 @@ class IcePerceptronClassifierTest
         {
             IcePerceptronClassifier iceFitter = new IcePerceptronClassifier().setLabelCol("NEXT_STATUS");
             iceFitter.setLayers(new int[]{inputCols.length, 5, 3}).setSeed(1234L).setLabelCol("NEXT_STATUS")
-                    .setMaxIter(10).setSolver("l-bfgs");
+                    .setMaxIter(10).setBlockSize(BLOCK_SIZE).setSolver("l-bfgs");
             iceModel = iceFitter.fit(fitting);
         }
 

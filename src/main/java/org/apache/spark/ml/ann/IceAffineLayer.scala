@@ -55,6 +55,10 @@ private[ann] class IceAffineLayerModel private[ann](
     BreezeUtil.dgemm(1.0, w.t, delta, 0.0, prevDelta)
   }
 
+  override def gradIce(delta: BDM[Double], input: BDM[Double], g2: BDV[Double], g2Weight: BDV[Double], cumGrad: BDV[Double]): Unit = {
+    grad(delta, input, cumGrad);
+  }
+
   override def grad(delta: BDM[Double], input: BDM[Double], cumGrad: BDV[Double]): Unit = {
     // compute gradient of weights
     val cumGradientOfWeights = new BDM[Double](w.rows, w.cols, cumGrad.data, cumGrad.offset)
@@ -65,17 +69,43 @@ private[ann] class IceAffineLayerModel private[ann](
     BreezeUtil.dgemv(1.0 / input.cols, delta, ones, 1.0, cumGradientOfBias)
   }
 
-  override def grad2(delta: BDM[Double], gamma: BDM[Double], input: BDM[Double], output: BDM[Double], cumGrad: BDV[Double], cumG2: BDV[Double]): Unit = {
-    grad(delta, input, cumGrad)
+  override def grad2(delta: BDM[Double], gamma: BDM[Double], input: BDM[Double], output: BDM[Double], cumG2: BDV[Double]): Unit = {
+    val cumG2ofWeights = new BDM[Double](w.rows, w.cols, cumG2.data, cumG2.offset)
+    val cumG2ofBias = new BDV[Double](cumG2.data, cumG2.offset + w.size, 1, b.length)
+
+    // Loop over
+    for (m <- 0 until gamma.cols) {
+
+      for(i <- 0 until cumG2ofWeights.rows) {
+        // Compute scale factor.
+        val gamma_i = gamma(i, m);
+
+        val prevOutput_i = output(i, m);
+
+        val fprime_i = nextLayer.activationDeriv(prevOutput_i);
+        val fprime2_i = nextLayer.activationSecondDeriv(prevOutput_i)
+        val delta_i = delta(i, m);
+
+        val scale = (gamma_i * fprime_i * fprime_i) + (delta_i * fprime2_i)
+        cumG2ofBias(i) = scale;
+
+        for(k <- 0 until cumG2ofWeights.cols) {
+          val a_k = input(i, k);
+
+          cumG2ofWeights(i, k) = scale * a_k * a_k;
+        }
+      }
+    }
   }
 
   override def computePrevDeltaExpanded(delta: BDM[Double], gamma: BDM[Double], prevOutput: BDM[Double], output: BDM[Double], prevDelta: BDM[Double], prevGamma: BDM[Double]): Unit = {
     computePrevDelta(delta, output, prevDelta);
 
+    // Loop over observations.
     for (m <- 0 until gamma.cols) {
-      //The inner summation.
-      for (i <- 0 until gamma.rows) {
 
+      // Loop over output indices.
+      for (i <- 0 until gamma.rows) {
         val gamma_i = gamma(i, m);
 
         val prevOutput_i = prevOutput(i, m);
@@ -87,6 +117,7 @@ private[ann] class IceAffineLayerModel private[ann](
         val scale = (gamma_i * fprime_i * fprime_i) + (delta_i * fprime2_i)
 
         for (k <- 0 until w.cols) {
+          // Inner summation.
           prevGamma(k, i) += scale * w(i, k) * w(i, k)
         }
       }

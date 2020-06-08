@@ -1,6 +1,7 @@
 package org.apache.spark.ml.ann
 
 import breeze.linalg.{DenseMatrix => BDM, DenseVector => BDV}
+import edu.columbia.tjw.item.util.IceTools
 import org.apache.spark.ml.linalg.{Vector, Vectors}
 import org.apache.spark.util.random.XORShiftRandom
 
@@ -33,7 +34,9 @@ private[ann] trait GeneralIceLayerModel extends LayerModel {
 
   def computePrevDeltaExpanded(delta: BDM[Double], gamma: BDM[Double], prevOutput: BDM[Double], output: BDM[Double], prevDelta: BDM[Double], prevGamma: BDM[Double]): Unit
 
-  def grad2(delta: BDM[Double], gamma: BDM[Double], input: BDM[Double], output: BDM[Double], cumGrad: BDV[Double], cumG2: BDV[Double]): Unit
+  def gradIce(delta: BDM[Double], input: BDM[Double], g2: BDV[Double], g2Weight: BDV[Double], cumGrad: BDV[Double]): Unit
+
+  def grad2(delta: BDM[Double], gamma: BDM[Double], input: BDM[Double], output: BDM[Double], cumG2: BDV[Double]): Unit
 
   /**
    * Derivative of activation function, as a function of the output of the activation function.
@@ -43,16 +46,17 @@ private[ann] trait GeneralIceLayerModel extends LayerModel {
    * @param input The value of the activation function. (i.e. f(x))
    * @return The derivative of the activation function (f'(x))
    */
-  def activationDeriv(input: Double) : Double
+  def activationDeriv(input: Double): Double
 
   /**
    * Same as above, expressed in terms of f(x), not x.
+   *
    * @param input
    * @return
    */
-  def activationSecondDeriv(input: Double) : Double
+  def activationSecondDeriv(input: Double): Double
 
-  def setNextLayer(nextLayer: GeneralIceLayerModel) : Unit
+  def setNextLayer(nextLayer: GeneralIceLayerModel): Unit
 
   //def setNextWeights(weights: BDV[Double]): Unit
 }
@@ -87,13 +91,13 @@ private[ml] class IceFeedForwardModel private(
 
     typedLayerModels(i) = typedLayers(i).createModel(currWeights)
 
-    if(i > 0) {
-      typedLayerModels(i-1).setNextLayer(typedLayerModels(i));
+    if (i > 0) {
+      typedLayerModels(i - 1).setNextLayer(typedLayerModels(i));
     }
 
-//    if (weightSize > 0 && i > 0) {
-//      typedLayerModels(i - 1).setNextWeights(currWeights);
-//    }
+    //    if (weightSize > 0 && i > 0) {
+    //      typedLayerModels(i - 1).setNextWeights(currWeights);
+    //    }
 
     layerModels(i) = typedLayerModels(i);
     offset += weightSize
@@ -132,6 +136,17 @@ private[ml] class IceFeedForwardModel private(
                                 target: BDM[Double],
                                 cumGradient: Vector,
                                 realBatchSize: Int): Double = {
+
+
+    return computeGradientRaw(data, target, cumGradient, realBatchSize);
+  }
+
+
+  def computeGradientRaw(
+                          data: BDM[Double],
+                          target: BDM[Double],
+                          cumGradient: Vector,
+                          realBatchSize: Int): Double = {
     val outputs = forward(data, true)
     val currentBatchSize = data.cols
     // TODO: allocate deltas as one big array and then create BDMs from it
@@ -154,20 +169,37 @@ private[ml] class IceFeedForwardModel private(
         throw new UnsupportedOperationException("Top layer is required to have objective.")
     }
     for (i <- (L - 2) to(0, -1)) {
-      typedLayerModels(i + 1).computePrevDeltaExpanded(deltas(i + 1), gammas(i + 1), outputs(i+2), outputs(i + 1), deltas(i), gammas(i))
+      typedLayerModels(i + 1).computePrevDeltaExpanded(deltas(i + 1), gammas(i + 1), outputs(i + 2), outputs(i + 1), deltas(i), gammas(i))
     }
     val cumGradientArray = cumGradient.toArray
     val cumG2Array = cumGradientArray.clone();
 
-
     var offset = 0
     for (i <- 0 until layerModels.length) {
       val input = if (i == 0) data else outputs(i - 1)
-      typedLayerModels(i).grad2(deltas(i), gammas(i), input, outputs(i),
-        new BDV[Double](cumGradientArray, offset, 1, layers(i).weightSize),
-        new BDV[Double](cumG2Array, offset, 1, layers(i).weightSize))
+      val g2Vec = new BDV[Double](cumG2Array, offset, 1, layers(i).weightSize)
+
+      typedLayerModels(i).grad2(deltas(i), gammas(i), input, outputs(i), g2Vec)
+
       offset += layers(i).weightSize
     }
+
+    //compute the weights...
+    val g2Weights = IceTools.computeJWeight(cumG2Array);
+
+    offset = 0;
+
+    for (i <- 0 until layerModels.length) {
+      val input = if (i == 0) data else outputs(i - 1)
+      val gradVec = new BDV[Double](cumGradientArray, offset, 1, layers(i).weightSize)
+      val g2Vec = new BDV[Double](cumG2Array, offset, 1, layers(i).weightSize)
+      val g2Weight = new BDV[Double](g2Weights, offset, 1, layers(i).weightSize)
+
+      typedLayerModels(i).gradIce(deltas(i), input, g2Vec, g2Weight, gradVec);
+
+      offset += layers(i).weightSize
+    }
+
     loss
   }
 
