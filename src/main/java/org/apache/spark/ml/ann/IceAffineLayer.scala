@@ -87,12 +87,12 @@ private[ann] class IceAffineLayerModel private[ann](
         val delta_i = delta(i, m);
 
         val scale = (gamma_i * fprime_i * fprime_i) + (delta_i * fprime2_i)
-        cumG2ofBias(i) = scale;
+        cumG2ofBias(i) += scale;
 
         for(k <- 0 until cumG2ofWeights.cols) {
           val a_k = input(i, k);
 
-          cumG2ofWeights(i, k) = scale * a_k * a_k;
+          cumG2ofWeights(i, k) += scale * a_k * a_k;
         }
       }
     }
@@ -103,7 +103,6 @@ private[ann] class IceAffineLayerModel private[ann](
 
     // Loop over observations.
     for (m <- 0 until gamma.cols) {
-
       // Loop over output indices.
       for (i <- 0 until gamma.rows) {
         val gamma_i = gamma(i, m);
@@ -118,7 +117,7 @@ private[ann] class IceAffineLayerModel private[ann](
 
         for (k <- 0 until w.cols) {
           // Inner summation.
-          prevGamma(k, i) += scale * w(i, k) * w(i, k)
+          prevGamma(k, m) += scale * w(i, k) * w(i, k)
         }
       }
     }

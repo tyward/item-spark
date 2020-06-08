@@ -12,8 +12,8 @@ import org.junit.jupiter.api.Test;
 
 class IcePerceptronClassifierTest
 {
-    //private static final int BLOCK_SIZE = 4096;
-    private static final int BLOCK_SIZE = 128;
+    private static final int BLOCK_SIZE = 4 * 4096;
+    //private static final int BLOCK_SIZE = 128;
 
     @Test
     void testMLP() throws Exception
