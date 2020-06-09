@@ -12,16 +12,28 @@ import org.junit.jupiter.api.Test;
 
 class IcePerceptronClassifierTest
 {
-    private static final int BLOCK_SIZE = 4 * 4096;
-    //private static final int BLOCK_SIZE = 128;
+    private static final String[] INPUT_COLS = new String[]{"MTM_LTV", "INCENTIVE", "FIRSTTIME_BUYER",
+            "UNIT_COUNT", "ORIG_CLTV", "ORIG_DTI", "ORIG_INTRATE", "PREPAYMENT_PENALTY"};
+    private static final int STATUS_COUNT = 3;
+
+
+    private static final int[] LAYERS = new int[]{INPUT_COLS.length, STATUS_COUNT};
+    private static final int MAX_ITER = 100;
+    private static final int BLOCK_SIZE = 128;
+    //private static final int BLOCK_SIZE = 4 * 4096;
+    private static final int SAMPLE_SIZE = BLOCK_SIZE;
+
+    private static final String SOLVER = "l-bfgs";
+    private static final int PRNG_SEED = 12345;
+
 
     @Test
     void testMLP() throws Exception
     {
         final SparkSession spark = SparkSession.builder()
-            .master("local")
-            .appName("Tree Session")
-            .getOrCreate();
+                .master("local")
+                .appName("Tree Session")
+                .getOrCreate();
 
         SparkContext context = spark.sparkContext();
 
@@ -30,23 +42,21 @@ class IcePerceptronClassifierTest
 
         Dataset<Row> frame = generateData(spark);
 
-        String[] inputCols = new String[]{"MTM_LTV", "INCENTIVE", "FIRSTTIME_BUYER",
-                "UNIT_COUNT", "ORIG_CLTV", "ORIG_DTI", "ORIG_INTRATE", "PREPAYMENT_PENALTY"};
 
         VectorAssembler assembler =
-                new VectorAssembler().setInputCols(inputCols).setOutputCol("features").setHandleInvalid("skip");
+                new VectorAssembler().setInputCols(INPUT_COLS).setOutputCol("features").setHandleInvalid("skip");
         Dataset<Row> transformed = assembler.transform(frame);
-        Dataset<Row>[] datasets = transformed.randomSplit(new double[]{0.25, 0.75}, 12345);
+        Dataset<Row>[] datasets = transformed.randomSplit(new double[]{0.25, 0.75}, PRNG_SEED);
 
-        Dataset<Row> fitting = datasets[0].limit(10 * 1000);
+        Dataset<Row> fitting = datasets[0].limit(SAMPLE_SIZE);
         Dataset<Row> testing = datasets[1];
 
         final ClassificationModel mlpModel;
 
         {
             MultilayerPerceptronClassifier mlpFitter = new MultilayerPerceptronClassifier().setLabelCol("NEXT_STATUS");
-            mlpFitter.setLayers(new int[]{inputCols.length, 5, 3}).setSeed(1234L).setLabelCol("NEXT_STATUS")
-                    .setMaxIter(10).setSolver("l-bfgs");
+            mlpFitter.setLayers(LAYERS).setSeed(PRNG_SEED).setLabelCol("NEXT_STATUS")
+                    .setMaxIter(MAX_ITER).setBlockSize(BLOCK_SIZE).setSolver(SOLVER);
             mlpModel = mlpFitter.fit(fitting);
         }
 
@@ -77,23 +87,20 @@ class IcePerceptronClassifierTest
 
         Dataset<Row> frame = generateData(spark);
 
-        String[] inputCols = new String[]{"MTM_LTV", "INCENTIVE", "FIRSTTIME_BUYER",
-                "UNIT_COUNT", "ORIG_CLTV", "ORIG_DTI", "ORIG_INTRATE", "PREPAYMENT_PENALTY"};
-
         VectorAssembler assembler =
-                new VectorAssembler().setInputCols(inputCols).setOutputCol("features").setHandleInvalid("skip");
+                new VectorAssembler().setInputCols(INPUT_COLS).setOutputCol("features").setHandleInvalid("skip");
         Dataset<Row> transformed = assembler.transform(frame);
-        Dataset<Row>[] datasets = transformed.randomSplit(new double[]{0.25, 0.75}, 12345);
+        Dataset<Row>[] datasets = transformed.randomSplit(new double[]{0.25, 0.75}, PRNG_SEED);
 
-        Dataset<Row> fitting = datasets[0].limit(10 * 1000);
+        Dataset<Row> fitting = datasets[0].limit(SAMPLE_SIZE);
         Dataset<Row> testing = datasets[1];
 
         final ClassificationModel iceModel;
 
         {
             IcePerceptronClassifier iceFitter = new IcePerceptronClassifier().setLabelCol("NEXT_STATUS");
-            iceFitter.setLayers(new int[]{inputCols.length, 5, 3}).setSeed(1234L).setLabelCol("NEXT_STATUS")
-                    .setMaxIter(10).setBlockSize(BLOCK_SIZE).setSolver("l-bfgs");
+            iceFitter.setLayers(LAYERS).setSeed(PRNG_SEED).setLabelCol("NEXT_STATUS")
+                    .setMaxIter(MAX_ITER).setBlockSize(BLOCK_SIZE).setSolver(SOLVER);
             iceModel = iceFitter.fit(fitting);
         }
 
@@ -121,15 +128,12 @@ class IcePerceptronClassifierTest
 
         Dataset<Row> frame = generateData(spark);
 
-        String[] inputCols = new String[]{"MTM_LTV", "INCENTIVE", "FIRSTTIME_BUYER",
-                "UNIT_COUNT", "ORIG_CLTV", "ORIG_DTI", "ORIG_INTRATE", "PREPAYMENT_PENALTY"};
-
         VectorAssembler assembler =
-                new VectorAssembler().setInputCols(inputCols).setOutputCol("features").setHandleInvalid("skip");
+                new VectorAssembler().setInputCols(INPUT_COLS).setOutputCol("features").setHandleInvalid("skip");
         Dataset<Row> transformed = assembler.transform(frame);
-        Dataset<Row>[] datasets = transformed.randomSplit(new double[]{0.25, 0.75}, 12345);
+        Dataset<Row>[] datasets = transformed.randomSplit(new double[]{0.25, 0.75}, PRNG_SEED);
 
-        Dataset<Row> fitting = datasets[0].limit(10 * 1000);
+        Dataset<Row> fitting = datasets[0].limit(SAMPLE_SIZE);
         Dataset<Row> testing = datasets[1];
 
         final ClassificationModel mlpModel;
@@ -137,15 +141,15 @@ class IcePerceptronClassifierTest
 
         {
             IcePerceptronClassifier iceFitter = new IcePerceptronClassifier().setLabelCol("NEXT_STATUS");
-            iceFitter.setLayers(new int[]{inputCols.length, 5, 3}).setSeed(1234L).setLabelCol("NEXT_STATUS")
-                    .setMaxIter(10).setBlockSize(BLOCK_SIZE).setSolver("l-bfgs");
+            iceFitter.setLayers(LAYERS).setSeed(PRNG_SEED).setLabelCol("NEXT_STATUS")
+                    .setMaxIter(MAX_ITER).setBlockSize(BLOCK_SIZE).setBlockSize(BLOCK_SIZE).setSolver(SOLVER);
             iceModel = iceFitter.fit(fitting);
         }
 
         {
             MultilayerPerceptronClassifier mlpFitter = new MultilayerPerceptronClassifier().setLabelCol("NEXT_STATUS");
-            mlpFitter.setLayers(new int[]{inputCols.length, 5, 3}).setSeed(1234L).setLabelCol("NEXT_STATUS")
-                    .setMaxIter(10).setSolver("l-bfgs");
+            mlpFitter.setLayers(LAYERS).setSeed(PRNG_SEED).setLabelCol("NEXT_STATUS")
+                    .setMaxIter(MAX_ITER).setBlockSize(BLOCK_SIZE).setSolver(SOLVER);
             mlpModel = mlpFitter.fit(fitting);
         }
 

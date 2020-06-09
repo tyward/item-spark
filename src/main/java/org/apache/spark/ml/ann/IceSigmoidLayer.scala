@@ -48,7 +48,7 @@ private[ann] class IceSigmoidLayerModel private[ann](val layer: IceSigmoidLayer)
     delta :*= nextDelta
   }
 
-  override def gradIce(delta: BDM[Double], input: BDM[Double], g2: BDV[Double], g2Weight: BDV[Double], cumGrad: BDV[Double]): Unit = {}
+  override def gradIce(delta: BDM[Double], input: BDM[Double], g2: BDV[Double], g2Weight: BDV[Double], cumGrad: BDV[Double]): Double = { return 0.0;}
 
   override def grad(delta: BDM[Double], input: BDM[Double], cumGrad: BDV[Double]): Unit = {}
 

@@ -34,7 +34,7 @@ private[ann] trait GeneralIceLayerModel extends LayerModel {
 
   def computePrevDeltaExpanded(delta: BDM[Double], gamma: BDM[Double], prevOutput: BDM[Double], output: BDM[Double], prevDelta: BDM[Double], prevGamma: BDM[Double]): Unit
 
-  def gradIce(delta: BDM[Double], input: BDM[Double], g2: BDV[Double], g2Weight: BDV[Double], cumGrad: BDV[Double]): Unit
+  def gradIce(delta: BDM[Double], input: BDM[Double], g2: BDV[Double], g2Weight: BDV[Double], cumGrad: BDV[Double]): Double
 
   def grad2(delta: BDM[Double], gamma: BDM[Double], input: BDM[Double], output: BDM[Double], cumG2: BDV[Double]): Unit
 
@@ -188,6 +188,7 @@ private[ml] class IceFeedForwardModel private(
     val g2Weights = IceTools.computeJWeight(cumG2Array);
 
     offset = 0;
+    var lossAdj = 0.0;
 
     for (i <- 0 until layerModels.length) {
       val input = if (i == 0) data else outputs(i - 1)
@@ -195,12 +196,13 @@ private[ml] class IceFeedForwardModel private(
       val g2Vec = new BDV[Double](cumG2Array, offset, 1, layers(i).weightSize)
       val g2Weight = new BDV[Double](g2Weights, offset, 1, layers(i).weightSize)
 
-      typedLayerModels(i).gradIce(deltas(i), input, g2Vec, g2Weight, gradVec);
+      lossAdj += typedLayerModels(i).gradIce(deltas(i), input, g2Vec, g2Weight, gradVec);
 
       offset += layers(i).weightSize
     }
 
-    loss
+    val iceLoss = loss + lossAdj;
+    iceLoss
   }
 
   override def predict(data: Vector): Vector = {
