@@ -56,7 +56,33 @@ private[ann] class IceAffineLayerModel private[ann](
   }
 
   override def gradIce(delta: BDM[Double], input: BDM[Double], g2: BDV[Double], g2Weight: BDV[Double], cumGrad: BDV[Double]): Unit = {
+//    val cumGradB = new BDV[Double](cumGrad.data.clone());
+
     grad(delta, input, cumGrad);
+
+//    val weightGrad = new BDM[Double](w.rows, w.cols, cumGradB.data, cumGrad.offset)
+//    val biasGrad = new BDV[Double](cumGrad.data, cumGradB.offset + w.size, 1, b.length)
+//
+//    val g2Matrix = new BDM[Double](w.rows, w.cols, g2.data, g2.offset)
+//    val g2Bias = new BDV[Double](g2.data, g2.offset + w.size, 1, b.length)
+//
+//    val weightMatrix = new BDM[Double](w.rows, w.cols, g2Weight.data, g2Weight.offset)
+//    val weightBias = new BDV[Double](g2Weight.data, g2Weight.offset + w.size, 1, b.length)
+//
+//    // Loop over observations.
+//    for (m <- 0 until input.cols) {
+//
+//      for(i <- 0 until g2Matrix.rows) {
+//
+//
+//        for(k <- 0 until g2Matrix.cols) {
+//
+//        }
+//      }
+//
+//    }
+
+
   }
 
   override def grad(delta: BDM[Double], input: BDM[Double], cumGrad: BDV[Double]): Unit = {
@@ -79,7 +105,6 @@ private[ann] class IceAffineLayerModel private[ann](
       for(i <- 0 until cumG2ofWeights.rows) {
         // Compute scale factor.
         val gamma_i = gamma(i, m);
-
         val prevOutput_i = output(i, m);
 
         val fprime_i = nextLayer.activationDeriv(prevOutput_i);
@@ -90,7 +115,7 @@ private[ann] class IceAffineLayerModel private[ann](
         cumG2ofBias(i) += scale;
 
         for(k <- 0 until cumG2ofWeights.cols) {
-          val a_k = input(i, k);
+          val a_k = input(k, m);
 
           cumG2ofWeights(i, k) += scale * a_k * a_k;
         }

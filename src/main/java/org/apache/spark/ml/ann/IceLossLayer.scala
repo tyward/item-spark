@@ -76,28 +76,11 @@ private[ann] class IceCrossEntropyLossLayerModel extends GeneralIceLayerModel wi
   override def loss(output: BDM[Double], target: BDM[Double], delta: BDM[Double], gamma: BDM[Double]): Double = {
     ApplyInPlace(output, target, delta, (o: Double, t: Double) => o - t)
 
-    var i = 0;
-    while(i < target.cols) {
-      var j = 0;
-      var dot : Double = 0.0;
-
-      while(j < target.rows) {
-        var t = target(j, i);
-        var o = output(j, i);
-
-        dot += target(j, i) * output(j, i);
-        j += 1;
+    for(i <- 0 until target.cols) {
+      for(j <- 0 until target.rows) {
+        val o = output(j, i);
+        gamma(j, i) = (1 - o) * o
       }
-
-      j = 0;
-
-      while(j < target.rows) {
-        gamma(j, i) = (target(j, i) - dot) * output(j, i);
-        j+= 1;
-      }
-
-
-      i += 1;
     }
 
     -Bsum(target *:* brzlog(output)) / output.cols
