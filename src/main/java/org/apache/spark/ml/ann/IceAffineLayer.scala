@@ -57,22 +57,16 @@ private[ann] class IceAffineLayerModel private[ann](
   }
 
   override def gradIce(delta: BDM[Double], input: BDM[Double], g2: BDV[Double], g2Weight: BDV[Double], cumGrad: BDV[Double]): Double = {
+    //grad(delta, input, cumGrad);
+    //return 0.0;
+
     // Used to hold each individual observation calculation, needed for ICE computations.
     val gradB = new BDV[Double](cumGrad.length);
-    //val gradAdj = new BDV[Double](cumGrad.length);
 
-    //grad(delta, input, cumGrad);
 
-    //val weightGrad = new BDM[Double](w.rows, w.cols, cumGrad.data, cumGrad.offset)
-    //val biasGrad = new BDV[Double](cumGrad.data, cumGrad.offset + w.size, 1, b.length)
+
     val weightGradB = new BDM[Double](w.rows, w.cols, gradB.data, gradB.offset)
     val biasGradB = new BDV[Double](gradB.data, gradB.offset + w.size, 1, b.length)
-
-//    val g2Matrix = new BDM[Double](w.rows, w.cols, g2.data, g2.offset)
-//    val g2Bias = new BDV[Double](g2.data, g2.offset + w.size, 1, b.length)
-//
-//    val weightMatrix = new BDM[Double](w.rows, w.cols, g2Weight.data, g2Weight.offset)
-//    val weightBias = new BDV[Double](g2Weight.data, g2Weight.offset + w.size, 1, b.length)
 
     val invObsCount = 1.0 / input.cols;
     var lossAdj = 0.0;
@@ -80,14 +74,12 @@ private[ann] class IceAffineLayerModel private[ann](
     // Loop over observations.
     for (m <- 0 until input.cols) {
 
-      for(i <- 0 until weightGradB.rows) {
+      for (i <- 0 until weightGradB.rows) {
         val delta_i = delta(i, m);
-        //biasGrad(i) += invObsCount * delta_i;
         biasGradB(i) = delta_i;
 
-        for(k <- 0 until weightGradB.cols) {
+        for (k <- 0 until weightGradB.cols) {
           val a_k = input(k, m)
-          //weightGrad(i, k) += invObsCount * delta_i * a_k;
           weightGradB(i, k) = delta_i * a_k;
         }
       }
@@ -98,7 +90,7 @@ private[ann] class IceAffineLayerModel private[ann](
       lossAdj += iceAdjustment;
       val adjScale = 2.0 * iceAdjustment;
 
-      for(i <- 0 until gradB.length) {
+      for (i <- 0 until gradB.length) {
         // Again, averaging something where adjScale ~ 1/m.
         val nextGrad = invObsCount * gradB(i);
         val gradAdj = nextGrad + (nextGrad * adjScale);
@@ -127,7 +119,7 @@ private[ann] class IceAffineLayerModel private[ann](
     // Loop over
     for (m <- 0 until gamma.cols) {
 
-      for(i <- 0 until cumG2ofWeights.rows) {
+      for (i <- 0 until cumG2ofWeights.rows) {
         // Compute scale factor.
         val gamma_i = gamma(i, m);
         val prevOutput_i = output(i, m);
@@ -139,7 +131,7 @@ private[ann] class IceAffineLayerModel private[ann](
         val scale = (gamma_i * fprime_i * fprime_i) + (delta_i * fprime2_i)
         cumG2ofBias(i) += scale;
 
-        for(k <- 0 until cumG2ofWeights.cols) {
+        for (k <- 0 until cumG2ofWeights.cols) {
           val a_k = input(k, m);
 
           cumG2ofWeights(i, k) += scale * a_k * a_k;
@@ -149,7 +141,7 @@ private[ann] class IceAffineLayerModel private[ann](
 
     val invObsCount = 1.0 / gamma.cols;
 
-    for(i <- 0 until cumG2.length) {
+    for (i <- 0 until cumG2.length) {
       cumG2(i) = cumG2(i) * invObsCount;
     }
   }

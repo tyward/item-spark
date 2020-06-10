@@ -37,33 +37,32 @@ class IcePerceptronClassifierTest
     private static final String SOLVER = "l-bfgs";
     private static final int PRNG_SEED = 12345;
 
+    @Test
+    void testICE()
+    {
+        final SparkSession spark = generateSparkSession();
+        final Dataset<Row> frame = generateData(spark);
+        final ClassificationModelEvaluator.EvaluationResult result = generateIceResult(frame, PRNG_SEED,
+                LAYERS, SAMPLE_SIZE);
 
-//    @Test
-//    void testICE()
-//    {
-//        final SparkSession spark = generateSparkSession();
-//        final Dataset<Row> frame = generateData(spark);
-//        final ClassificationModelEvaluator.EvaluationResult result = generateIceResult(frame, PRNG_SEED,
-//                LAYERS, SAMPLE_SIZE);
-//
-//        PrintStream output = System.out;
-//        printHeader(output);
-//        printResults(result, output);
-//    }
-//
-//    @Test
-//    void testMLP()
-//    {
-//        final SparkSession spark = generateSparkSession();
-//        final Dataset<Row> frame = generateData(spark);
-//        final ClassificationModelEvaluator.EvaluationResult result = generateMlpResult(frame, PRNG_SEED,
-//                LAYERS, SAMPLE_SIZE);
-//
-//        PrintStream output = System.out;
-//
-//        printHeader(output);
-//        printResults(result, output);
-//    }
+        PrintStream output = System.out;
+        printHeader(output);
+        printResults(result, output);
+    }
+
+    @Test
+    void testMLP()
+    {
+        final SparkSession spark = generateSparkSession();
+        final Dataset<Row> frame = generateData(spark);
+        final ClassificationModelEvaluator.EvaluationResult result = generateMlpResult(frame, PRNG_SEED,
+                LAYERS, SAMPLE_SIZE);
+
+        PrintStream output = System.out;
+
+        printHeader(output);
+        printResults(result, output);
+    }
 
     @Test
     void testSweep() throws Exception
@@ -73,14 +72,17 @@ class IcePerceptronClassifierTest
 
         final Random rand = RandomTool.getRandom(PrngType.SECURE);
 
-        final int[][] testLayers = new int[3][];
+        final int[][] testLayers = new int[5][];
         testLayers[0] = new int[]{INPUT_COLS.length, STATUS_COUNT};
         testLayers[1] = new int[]{INPUT_COLS.length, 5, STATUS_COUNT};
-        testLayers[2] = new int[]{INPUT_COLS.length, 8, 5, STATUS_COUNT};
+        testLayers[2] = new int[]{INPUT_COLS.length, 5, 5, STATUS_COUNT};
+        testLayers[3] = new int[]{INPUT_COLS.length, 8, 5, STATUS_COUNT};
+        testLayers[4] = new int[]{INPUT_COLS.length, 8, 5, 5, STATUS_COUNT};
 
-        final int[] sampleSizes = new int[]{128, 256, 512, 1024, 2048, 4096, 8 * 1024, 16 * 1024, 32 * 1024};
+        final int[] sampleSizes = new int[]{128, 256, 512, 1024, 2048, 4096, 8 * 1024, 16 * 1024, 32 * 1024,
+                64 * 1024, 128 * 1024};
 
-        final int repCount = 3;
+        final int repCount = 10;
 
         try (final OutputStream oStream = new FileOutputStream("/Users/tyler/Desktop/runResults.csv");
              PrintStream output = new PrintStream(oStream))
