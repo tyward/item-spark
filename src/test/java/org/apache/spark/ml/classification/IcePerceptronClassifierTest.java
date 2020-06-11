@@ -126,7 +126,7 @@ class IcePerceptronClassifierTest
         MultilayerPerceptronClassifier mlpFitter = new MultilayerPerceptronClassifier().setLabelCol("NEXT_STATUS");
         mlpFitter.setLayers(layers_).setSeed(prngSeed_).setLabelCol("NEXT_STATUS")
                 .setMaxIter(MAX_ITER).setBlockSize(sampleSize_).setSolver(SOLVER);
-
+        
         final GeneratedData data = prepareData(raw, prngSeed_, sampleSize_);
         return ClassificationModelEvaluator.evaluate(mlpFitter, "MLP", data.getFitting(), data.getTesting(), prngSeed_,
                 layers_);

@@ -3,6 +3,7 @@ package org.apache.spark.ml.ann
 import java.util.Random
 
 import breeze.linalg.{*, DenseMatrix => BDM, DenseVector => BDV}
+import edu.columbia.tjw.item.algo.DoubleVector
 import edu.columbia.tjw.item.util.IceTools
 
 
@@ -86,7 +87,9 @@ private[ann] class IceAffineLayerModel private[ann](
 
       // Now weightGradB contains the gradient just for this observation.
       // This is the average of a thing that is itself of order 1/m
-      val iceAdjustment = invObsCount * IceTools.computeIce3Sum(gradB.data, g2.data, g2Weight.data, false);
+      val iceAdjustment = invObsCount * IceTools.computeIce3Sum(gradB.data, DoubleVector.of(g2.data, false),
+        DoubleVector.of(g2Weight.data, false), false);
+
       lossAdj += iceAdjustment;
       val adjScale = 2.0 * iceAdjustment;
 

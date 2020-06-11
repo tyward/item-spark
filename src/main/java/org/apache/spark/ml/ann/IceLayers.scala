@@ -1,6 +1,7 @@
 package org.apache.spark.ml.ann
 
 import breeze.linalg.{DenseMatrix => BDM, DenseVector => BDV}
+import edu.columbia.tjw.item.algo.DoubleVector
 import edu.columbia.tjw.item.util.IceTools
 import org.apache.spark.ml.linalg.{Vector, Vectors}
 import org.apache.spark.util.random.XORShiftRandom
@@ -185,7 +186,7 @@ private[ml] class IceFeedForwardModel private(
     }
 
     //compute the weights...
-    val g2Weights = IceTools.computeJWeight(cumG2Array);
+    val g2Weights = IceTools.computeJWeight(DoubleVector.of(cumG2Array, false)).copyOfUnderlying();
 
     offset = 0;
     var lossAdj = 0.0;
