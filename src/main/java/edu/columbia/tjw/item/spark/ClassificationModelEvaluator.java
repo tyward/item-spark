@@ -2,6 +2,7 @@ package edu.columbia.tjw.item.spark;
 
 import org.apache.spark.ml.classification.ClassificationModel;
 import org.apache.spark.ml.classification.MultilayerPerceptronClassificationModel;
+import org.apache.spark.ml.classification.ProbabilisticClassificationModel;
 import org.apache.spark.ml.classification.ProbabilisticClassifier;
 import org.apache.spark.ml.linalg.Vector;
 import org.apache.spark.sql.Dataset;
@@ -14,15 +15,16 @@ public class ClassificationModelEvaluator
 {
 
 
-    public static <M extends ProbabilisticClassifier<Vector, M,
-            MultilayerPerceptronClassificationModel>>
+    public static <W extends ProbabilisticClassificationModel<Vector, W>, M extends ProbabilisticClassifier<Vector, M
+            , W>>
     EvaluationResult evaluate(final M classifier_,
                               final String label_,
                               Dataset<Row> fitting,
                               Dataset<Row> testing, final long prngSeed_, final int[] layers_)
     {
         final long start = System.currentTimeMillis();
-        final MultilayerPerceptronClassificationModel evalModel = classifier_.fit(fitting);
+        final MultilayerPerceptronClassificationModel evalModel = (MultilayerPerceptronClassificationModel) classifier_
+                .fit(fitting);
         final long elapsed = System.currentTimeMillis() - start;
 
         final EntropyResult fitResult = computeEntropy(fitting, evalModel);

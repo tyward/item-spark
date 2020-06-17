@@ -1,7 +1,7 @@
 package org.apache.spark.ml.classification
 
 import org.apache.spark.annotation.Since
-import org.apache.spark.ml.ann.{FeedForwardTrainer, IceFeedForwardTopology}
+import org.apache.spark.ml.ann.{FeedForwardTrainer, IceFeedForwardTopology, IcePerceptronClassificationModel}
 import org.apache.spark.ml.feature.OneHotEncoderModel
 import org.apache.spark.ml.linalg.Vector
 import org.apache.spark.ml.param._
@@ -109,7 +109,7 @@ class IcePerceptronClassifier @Since("1.5.0")(
    * @return Fitted model
    */
   override protected def train(
-                                dataset: Dataset[_]): MultilayerPerceptronClassificationModel = instrumented { instr =>
+                                dataset: Dataset[_]): IcePerceptronClassificationModel = instrumented { instr =>
     instr.logPipelineStage(this)
     instr.logDataset(dataset)
     instr.logParams(this, labelCol, featuresCol, predictionCol, layers, maxIter, tol,
@@ -132,7 +132,6 @@ class IcePerceptronClassifier @Since("1.5.0")(
     val data = encodedDataset.select($(featuresCol), encodedLabelCol).rdd.map {
       case Row(features: Vector, encodedLabel: Vector) => (features, encodedLabel)
     }
-    //val topology = FeedForwardTopology.multiLayerPerceptron(myLayers, softmaxOnTop = true)
 
     val topology = IceFeedForwardTopology.multiLayerPerceptron(myLayers)
     val trainer = new FeedForwardTrainer(topology, myLayers(0), myLayers.last)
@@ -156,9 +155,15 @@ class IcePerceptronClassifier @Since("1.5.0")(
     }
     trainer.setStackSize($(blockSize))
     val mlpModel = trainer.train(data)
-    new MultilayerPerceptronClassificationModel(uid, myLayers, mlpModel.weights)
+    return generate(mlpModel.weights); //new IcePerceptronClassificationModel(uid, myLayers, mlpModel.weights, $(blockSize))
+  }
+
+  def generate(weights: Vector): IcePerceptronClassificationModel = {
+    val myLayers = $(layers)
+    new IcePerceptronClassificationModel(uid, myLayers, weights, $(blockSize))
   }
 }
+
 
 @Since("2.0.0")
 object IcePerceptronClassifier

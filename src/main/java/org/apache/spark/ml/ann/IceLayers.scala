@@ -3,7 +3,16 @@ package org.apache.spark.ml.ann
 import breeze.linalg.{DenseMatrix => BDM, DenseVector => BDV}
 import edu.columbia.tjw.item.algo.DoubleVector
 import edu.columbia.tjw.item.util.IceTools
+import org.apache.spark.annotation.Since
+import org.apache.spark.ml.classification.MultilayerPerceptronClassificationModel
+import org.apache.spark.ml.feature.OneHotEncoderModel
 import org.apache.spark.ml.linalg.{Vector, Vectors}
+import org.apache.spark.mllib.linalg.BLAS.axpy
+import org.apache.spark.mllib.linalg.{Vector => OldVector, Vectors => OldVectors}
+import org.apache.spark.mllib.optimization.Gradient
+import org.apache.spark.rdd.RDD
+import org.apache.spark.sql.{Dataset, Row}
+import org.apache.spark.storage.StorageLevel
 import org.apache.spark.util.random.XORShiftRandom
 
 private[ann] trait GeneralIceLayer extends Layer {
@@ -138,16 +147,18 @@ private[ml] class IceFeedForwardModel private(
                                 cumGradient: Vector,
                                 realBatchSize: Int): Double = {
 
+    val cumGradientArray = cumGradient.toArray
+    val cumG2Array = cumGradientArray.clone();
 
-    return computeGradientRaw(data, target, cumGradient, realBatchSize);
+    return computeGradientRaw(data, target, cumGradient.toArray, cumG2Array);
   }
 
 
   def computeGradientRaw(
                           data: BDM[Double],
                           target: BDM[Double],
-                          cumGradient: Vector,
-                          realBatchSize: Int): Double = {
+                          cumGradientArray: Array[Double],
+                          cumG2Array: Array[Double]): Double = {
     val outputs = forward(data, true)
     val currentBatchSize = data.cols
     // TODO: allocate deltas as one big array and then create BDMs from it
@@ -172,8 +183,8 @@ private[ml] class IceFeedForwardModel private(
     for (i <- (L - 2) to(0, -1)) {
       typedLayerModels(i + 1).computePrevDeltaExpanded(deltas(i + 1), gammas(i + 1), outputs(i + 2), outputs(i + 1), deltas(i), gammas(i))
     }
-    val cumGradientArray = cumGradient.toArray
-    val cumG2Array = cumGradientArray.clone();
+    //val cumGradientArray = cumGradient.toArray
+    //    val cumG2Array = cumGradientArray.clone();
 
     var offset = 0
     for (i <- 0 until layerModels.length) {
@@ -272,9 +283,9 @@ private[ann] object IceFeedForwardModel {
  * @param layers Array of layers
  */
 private[ann] class IceFeedForwardTopology(val layers: Array[GeneralIceLayer]) extends Topology {
-  override def model(weights: Vector): TopologyModel = IceFeedForwardModel(this, weights)
+  override def model(weights: Vector): IceFeedForwardModel = IceFeedForwardModel(this, weights)
 
-  override def model(seed: Long): TopologyModel = IceFeedForwardModel(this, seed)
+  override def model(seed: Long): IceFeedForwardModel = IceFeedForwardModel(this, seed)
 }
 
 /**
@@ -316,5 +327,96 @@ private[ml] object IceFeedForwardTopology {
   }
 }
 
+class IcePerceptronClassificationModel private[ml](
+                                                    @Since("1.5.0") override val uid: String,
+                                                    @Since("1.5.0") override val layers: Array[Int],
+                                                    @Since("2.0.0") override val weights: Vector, val blockSize: Int)
+  extends MultilayerPerceptronClassificationModel(uid, layers, weights) {
 
+  @Since("1.6.0")
+  override val numFeatures: Int = layers.head
+
+  //  private[ml] val iceModel: IceFeedForwardModel = IceFeedForwardTopology
+  //    .multiLayerPerceptron(layers)
+  //    .model(weights)
+
+
+  def computeGradients(
+                        dataset: Dataset[_],
+                        weights: Vector,
+                        cumGradientArray: Array[Double],
+                        cumG2Array: Array[Double]): Double = {
+    val myLayers: Array[Int] = layers
+    val labels = myLayers.last
+    val encodedLabelCol = "_encoded" + $(labelCol)
+    val encodeModel = new OneHotEncoderModel(uid, Array(labels))
+      .setInputCols(Array($(labelCol)))
+      .setOutputCols(Array(encodedLabelCol))
+      .setDropLast(false)
+    val encodedDataset = encodeModel.transform(dataset)
+    val data = encodedDataset.select($(featuresCol), encodedLabelCol).rdd.map {
+      case Row(features: Vector, encodedLabel: Vector) => (features, encodedLabel)
+    }
+
+    val dataStacker = new DataStacker(blockSize, myLayers(0), myLayers.last)
+
+    val iceModel: IceFeedForwardModel = IceFeedForwardTopology
+      .multiLayerPerceptron(layers)
+      .model(weights)
+
+    val gradient: Gradient = new ANNGradient(iceModel.topology, dataStacker)
+
+    val trainData: RDD[(Double, OldVector)] = dataStacker.stack(data).map { v =>
+      (v._1, OldVectors.fromML(v._2))
+    }
+
+    trainData.persist(StorageLevel.MEMORY_AND_DISK)
+
+    val handlePersistence = (trainData.getStorageLevel == StorageLevel.NONE);
+
+    try {
+      if (handlePersistence) {
+        trainData.persist(StorageLevel.MEMORY_AND_DISK)
+      }
+
+      // Do the work here...
+      val w = OldVectors.dense(weights.toArray); //OldVectors.fromBreeze(weights)
+      val n = w.size
+      val bcW = data.context.broadcast(w)
+
+      val seqOp = (c: (OldVector, Double), v: (Double, OldVector)) =>
+        (c, v) match {
+          case ((grad, loss), (label, features)) =>
+            val denseGrad: OldVector = grad.toDense
+            val bcwV: OldVector = bcW.value
+            val l = gradient.compute(features, label, bcwV, denseGrad)
+            (denseGrad, loss + l)
+        }
+
+      val combOp = (c1: (OldVector, Double), c2: (OldVector, Double)) =>
+        (c1, c2) match {
+          case ((grad1, loss1), (grad2, loss2)) =>
+            val denseGrad1 = grad1.toDense
+            val denseGrad2 = grad2.toDense
+            axpy(1.0, denseGrad2, denseGrad1)
+            (denseGrad1, loss1 + loss2)
+        }
+
+      val zeroSparseVector = OldVectors.sparse(n, Seq.empty)
+      val (gradientSum, lossSum) = trainData.treeAggregate((zeroSparseVector, 0.0))(seqOp, combOp)
+
+      for (w <- 0 until cumGradientArray.length) {
+        cumGradientArray(w) = gradientSum(w);
+      }
+
+      return lossSum;
+    }
+    finally {
+      if (handlePersistence) {
+        trainData.unpersist()
+      }
+    }
+  }
+
+}
 

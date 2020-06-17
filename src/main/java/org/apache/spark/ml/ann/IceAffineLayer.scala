@@ -85,9 +85,11 @@ private[ann] class IceAffineLayerModel private[ann](
         }
       }
 
+      val iceFactor = 0.0;
+
       // Now weightGradB contains the gradient just for this observation.
       // This is the average of a thing that is itself of order 1/m
-      val iceAdjustment = invObsCount * IceTools.computeIce3Sum(gradB.data, DoubleVector.of(g2.data, false),
+      val iceAdjustment = iceFactor * invObsCount * IceTools.computeIce3Sum(gradB.data, DoubleVector.of(g2.data, false),
         DoubleVector.of(g2Weight.data, false), false);
 
       lossAdj += iceAdjustment;
