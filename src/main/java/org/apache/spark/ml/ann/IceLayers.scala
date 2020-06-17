@@ -42,11 +42,11 @@ private[ann] trait IceLossFunction {
 
 private[ann] trait GeneralIceLayerModel extends LayerModel {
 
-  def computePrevDeltaExpanded(delta: BDM[Double], gamma: BDM[Double], prevOutput: BDM[Double], output: BDM[Double], prevDelta: BDM[Double], prevGamma: BDM[Double]): Unit
+  def computePrevDeltaExpanded(delta: BDM[Double], nextDelta: BDM[Double], gamma: BDM[Double], prevOutput: BDM[Double], output: BDM[Double], prevDelta: BDM[Double], prevGamma: BDM[Double]): Unit
 
   def gradIce(delta: BDM[Double], input: BDM[Double], g2: BDV[Double], g2Weight: BDV[Double], cumGrad: BDV[Double]): Double
 
-  def grad2(delta: BDM[Double], gamma: BDM[Double], input: BDM[Double], output: BDM[Double], cumG2: BDV[Double]): Unit
+  def grad2(delta: BDM[Double], nextDelta: BDM[Double], gamma: BDM[Double], input: BDM[Double], output: BDM[Double], cumG2: BDV[Double]): Unit
 
   /**
    * Derivative of activation function, as a function of the output of the activation function.
@@ -181,17 +181,16 @@ private[ml] class IceFeedForwardModel private(
         throw new UnsupportedOperationException("Top layer is required to have objective.")
     }
     for (i <- (L - 2) to(0, -1)) {
-      typedLayerModels(i + 1).computePrevDeltaExpanded(deltas(i + 1), gammas(i + 1), outputs(i + 2), outputs(i + 1), deltas(i), gammas(i))
+      typedLayerModels(i + 1).computePrevDeltaExpanded(deltas(i + 1), deltas(i + 2), gammas(i + 1), outputs(i + 2), outputs(i + 1), deltas(i), gammas(i))
     }
-    //val cumGradientArray = cumGradient.toArray
-    //    val cumG2Array = cumGradientArray.clone();
 
+    // N.B: The last layer is a loss layer, we don't need to compute its grad since it doesn't have weights.
     var offset = 0
-    for (i <- 0 until layerModels.length) {
+    for (i <- 0 until L) {
       val input = if (i == 0) data else outputs(i - 1)
       val g2Vec = new BDV[Double](cumG2Array, offset, 1, layers(i).weightSize)
 
-      typedLayerModels(i).grad2(deltas(i), gammas(i), input, outputs(i), g2Vec)
+      typedLayerModels(i).grad2(deltas(i), deltas(i + 1), gammas(i), input, outputs(i), g2Vec)
 
       offset += layers(i).weightSize
     }
@@ -343,11 +342,7 @@ private[ann] class ANNGradient2(topology: IceFeedForwardTopology, dataStacker: D
     val model: IceFeedForwardModel = topology.model(Vectors.dense(weights.toArray))
 
     val cumGradientArray = cumGradient.toArray
-    //    val cumG2Array = cumGradientArray.clone();
-
     return model.computeGradientRaw(input, target, cumGradientArray, cumG2Array);
-
-    //model.computeGradient(input, target, Vectors.dense(cumGradient.toArray), realBatchSize)
   }
 
   override def compute(

@@ -241,7 +241,7 @@ class IcePerceptronClassifierTest
         final double[] fdGrad = new double[size];
         final double[] fdDiag = new double[size];
 
-        final double loss = model.computeGradients(data.getFitting(), model.weights(), grad, jDiag);
+        final double loss = model.computeGradients(data.getFitting().limit(1), model.weights(), grad, jDiag);
 
         for (int i = 0; i < weights.length; i++)
         {
@@ -253,7 +253,7 @@ class IcePerceptronClassifierTest
             final double[] g2 = new double[size];
             final double[] jDiag2 = new double[size];
 
-            final double l2 = model.computeGradients(data.getFitting(), Vectors.dense(w2), g2, jDiag2);
+            final double l2 = model.computeGradients(data.getFitting().limit(1), Vectors.dense(w2), g2, jDiag2);
 
             final double fdd = (l2 - loss) / h;
 
@@ -362,7 +362,7 @@ class IcePerceptronClassifierTest
         Dataset<Row> fitting = datasets[0].limit(sampleSize_);
         Dataset<Row> testing = datasets[1];
 
-//        fitting.persist(StorageLevel.MEMORY_AND_DISK());
+        fitting.persist(StorageLevel.MEMORY_AND_DISK());
 //        testing.persist(StorageLevel.MEMORY_AND_DISK());
 
         return new GeneratedData(fitting, testing);

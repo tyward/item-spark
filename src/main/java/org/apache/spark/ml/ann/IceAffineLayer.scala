@@ -117,9 +117,18 @@ private[ann] class IceAffineLayerModel private[ann](
     BreezeUtil.dgemv(1.0 / input.cols, delta, ones, 1.0, cumGradientOfBias)
   }
 
-  override def grad2(delta: BDM[Double], gamma: BDM[Double], input: BDM[Double], output: BDM[Double], cumG2: BDV[Double]): Unit = {
+  override def grad2(delta: BDM[Double], nextDelta: BDM[Double], gamma: BDM[Double], input: BDM[Double], output: BDM[Double], cumG2: BDV[Double]): Unit = {
     val cumG2ofWeights = new BDM[Double](w.rows, w.cols, cumG2.data, cumG2.offset)
     val cumG2ofBias = new BDV[Double](cumG2.data, cumG2.offset + w.size, 1, b.length)
+
+    var targetDelta: BDM[Double] = null;
+
+    if (nextDelta != null) {
+      targetDelta = nextDelta;
+    }
+    else {
+      targetDelta = delta;
+    }
 
     // Loop over
     for (m <- 0 until gamma.cols) {
@@ -131,7 +140,7 @@ private[ann] class IceAffineLayerModel private[ann](
 
         val fprime_i = nextLayer.activationDeriv(prevOutput_i);
         val fprime2_i = nextLayer.activationSecondDeriv(prevOutput_i)
-        val delta_i = delta(i, m);
+        val delta_i = targetDelta(i, m);
 
         val scale = (gamma_i * fprime_i * fprime_i) + (delta_i * fprime2_i)
         cumG2ofBias(i) += scale;
@@ -151,8 +160,17 @@ private[ann] class IceAffineLayerModel private[ann](
     }
   }
 
-  override def computePrevDeltaExpanded(delta: BDM[Double], gamma: BDM[Double], prevOutput: BDM[Double], output: BDM[Double], prevDelta: BDM[Double], prevGamma: BDM[Double]): Unit = {
+  override def computePrevDeltaExpanded(delta: BDM[Double], nextDelta: BDM[Double], gamma: BDM[Double], prevOutput: BDM[Double], output: BDM[Double], prevDelta: BDM[Double], prevGamma: BDM[Double]): Unit = {
     computePrevDelta(delta, output, prevDelta);
+
+    var targetDelta: BDM[Double] = null;
+
+    if (nextDelta != null) {
+      targetDelta = nextDelta;
+    }
+    else {
+      targetDelta = delta;
+    }
 
     // Loop over observations.
     for (m <- 0 until gamma.cols) {
@@ -164,13 +182,15 @@ private[ann] class IceAffineLayerModel private[ann](
 
         val fprime_i = nextLayer.activationDeriv(prevOutput_i);
         val fprime2_i = nextLayer.activationSecondDeriv(prevOutput_i)
-        val delta_i = delta(i, m);
+        val delta_i = targetDelta(i, m);
 
         val scale = (gamma_i * fprime_i * fprime_i) + (delta_i * fprime2_i)
 
         for (k <- 0 until w.cols) {
+          val currWeight = w(i, k)
+          val computedGamma = scale * currWeight * currWeight;
           // Inner summation.
-          prevGamma(k, m) += scale * w(i, k) * w(i, k)
+          prevGamma(k, m) += computedGamma
         }
       }
     }

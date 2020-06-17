@@ -48,32 +48,34 @@ private[ann] class IceSigmoidLayerModel private[ann](val layer: IceSigmoidLayer)
     delta :*= nextDelta
   }
 
-  override def gradIce(delta: BDM[Double], input: BDM[Double], g2: BDV[Double], g2Weight: BDV[Double], cumGrad: BDV[Double]): Double = { return 0.0;}
+  override def gradIce(delta: BDM[Double], input: BDM[Double], g2: BDV[Double], g2Weight: BDV[Double], cumGrad: BDV[Double]): Double = {
+    return 0.0;
+  }
 
   override def grad(delta: BDM[Double], input: BDM[Double], cumGrad: BDV[Double]): Unit = {}
 
-  override def grad2(delta: BDM[Double], gamma: BDM[Double], input: BDM[Double], output: BDM[Double], cumG2: BDV[Double]): Unit = {}
+  override def grad2(delta: BDM[Double], nextDelta: BDM[Double], gamma: BDM[Double], input: BDM[Double], output: BDM[Double], cumG2: BDV[Double]): Unit = {}
 
-  override def computePrevDeltaExpanded(delta: BDM[Double], gamma: BDM[Double], prevOutput: BDM[Double], output: BDM[Double], prevDelta: BDM[Double], prevGamma: BDM[Double]): Unit = {
+  override def computePrevDeltaExpanded(delta: BDM[Double], nextDelta: BDM[Double], gamma: BDM[Double], prevOutput: BDM[Double], output: BDM[Double], prevDelta: BDM[Double], prevGamma: BDM[Double]): Unit = {
     computePrevDelta(delta, output, prevDelta);
 
     // Copy gamma -> prevGamma
-    for(i <- 0 until gamma.rows) {
-      for( j <- 0 until gamma.cols) {
-        prevGamma(i,j) = gamma(i,j)
+    for (i <- 0 until gamma.rows) {
+      for (j <- 0 until gamma.cols) {
+        prevGamma(i, j) = gamma(i, j)
       }
     }
   }
 
-  override def activationDeriv(input: Double) : Double = {
+  override def activationDeriv(input: Double): Double = {
     layer.activationFunction.derivative(input)
   }
 
-  override def activationSecondDeriv(input: Double) : Double = {
+  override def activationSecondDeriv(input: Double): Double = {
     layer.activationFunction.secondDerivative(input)
   }
 
-  def setNextLayer(nextLayer: GeneralIceLayerModel) : Unit = {
+  def setNextLayer(nextLayer: GeneralIceLayerModel): Unit = {
     // Do nothing.
   }
 
