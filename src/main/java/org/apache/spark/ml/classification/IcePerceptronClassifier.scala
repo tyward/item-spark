@@ -155,12 +155,7 @@ class IcePerceptronClassifier @Since("1.5.0")(
     }
     trainer.setStackSize($(blockSize))
     val mlpModel = trainer.train(data)
-    return generate(mlpModel.weights); //new IcePerceptronClassificationModel(uid, myLayers, mlpModel.weights, $(blockSize))
-  }
-
-  def generate(weights: Vector): IcePerceptronClassificationModel = {
-    val myLayers = $(layers)
-    new IcePerceptronClassificationModel(uid, myLayers, weights, $(blockSize))
+    return new IcePerceptronClassificationModel(uid, myLayers, mlpModel.weights, $(blockSize))
   }
 }
 

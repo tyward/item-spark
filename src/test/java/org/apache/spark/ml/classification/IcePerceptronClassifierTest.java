@@ -16,6 +16,7 @@ import org.apache.spark.sql.Row;
 import org.apache.spark.sql.SparkSession;
 import org.apache.spark.sql.functions;
 import org.apache.spark.sql.types.DataTypes;
+import org.apache.spark.storage.StorageLevel;
 import org.junit.jupiter.api.Test;
 
 import java.io.FileOutputStream;
@@ -252,7 +253,6 @@ class IcePerceptronClassifierTest
             final double[] g2 = new double[size];
             final double[] jDiag2 = new double[size];
 
-            //final IcePerceptronClassificationModel m2 = iceFitter.generate(Vectors.dense(w2));
             final double l2 = model.computeGradients(data.getFitting(), Vectors.dense(w2), g2, jDiag2);
 
             final double fdd = (l2 - loss) / h;
@@ -269,6 +269,7 @@ class IcePerceptronClassifierTest
 
             System.out.println("FDD[" + origGrad + "]: " + fdd);
             System.out.println("FDD2[" + origDiag + ", " + shiftDiag + "]: " + fdd2);
+            System.out.println("next.");
         }
 
         final double fdCos = MathTools.cos(fdGrad, grad);
@@ -361,6 +362,9 @@ class IcePerceptronClassifierTest
         Dataset<Row> fitting = datasets[0].limit(sampleSize_);
         Dataset<Row> testing = datasets[1];
 
+//        fitting.persist(StorageLevel.MEMORY_AND_DISK());
+//        testing.persist(StorageLevel.MEMORY_AND_DISK());
+
         return new GeneratedData(fitting, testing);
     }
 
@@ -439,10 +443,7 @@ class IcePerceptronClassifierTest
 
         }
 
-
-        //for()
-
-
+        frame.persist(StorageLevel.MEMORY_AND_DISK());
         return frame;
     }
 

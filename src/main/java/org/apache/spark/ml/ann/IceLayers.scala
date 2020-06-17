@@ -327,6 +327,53 @@ private[ml] object IceFeedForwardTopology {
   }
 }
 
+/**
+ * Neural network gradient. Does nothing but calling Model's gradient
+ *
+ * @param topology    topology
+ * @param dataStacker data stacker
+ */
+private[ann] class ANNGradient2(topology: IceFeedForwardTopology, dataStacker: DataStacker) extends Gradient {
+  def compute2(
+                data: OldVector,
+                label: Double,
+                weights: OldVector,
+                cumGradient: OldVector, cumG2Array: Array[Double]): Double = {
+    val (input, target, realBatchSize) = dataStacker.unstack(Vectors.dense(data.toArray))
+    val model: IceFeedForwardModel = topology.model(Vectors.dense(weights.toArray))
+
+    val cumGradientArray = cumGradient.toArray
+    //    val cumG2Array = cumGradientArray.clone();
+
+    return model.computeGradientRaw(input, target, cumGradientArray, cumG2Array);
+
+    //model.computeGradient(input, target, Vectors.dense(cumGradient.toArray), realBatchSize)
+  }
+
+  override def compute(
+                        data: OldVector,
+                        label: Double,
+                        weights: OldVector,
+                        cumGradient: OldVector): Double = {
+    val cumGradientArray = cumGradient.toArray
+    val cumG2Array = cumGradientArray.clone();
+
+    return compute2(data, label, weights, cumGradient, cumG2Array);
+    //
+    //    val (input, target, realBatchSize) = dataStacker.unstack(Vectors.dense(data.toArray))
+    //    val model: IceFeedForwardModel = topology.model(Vectors.dense(weights.toArray))
+    //
+    //    val cumGradientArray = cumGradient.toArray
+    //    val cumG2Array = cumGradientArray.clone();
+    //
+    //    return model.computeGradientRaw(input, target, cumGradient.toArray, cumG2Array);
+
+    //model.computeGradient(input, target, Vectors.dense(cumGradient.toArray), realBatchSize)
+  }
+
+
+}
+
 class IcePerceptronClassificationModel private[ml](
                                                     @Since("1.5.0") override val uid: String,
                                                     @Since("1.5.0") override val layers: Array[Int],
@@ -335,11 +382,6 @@ class IcePerceptronClassificationModel private[ml](
 
   @Since("1.6.0")
   override val numFeatures: Int = layers.head
-
-  //  private[ml] val iceModel: IceFeedForwardModel = IceFeedForwardTopology
-  //    .multiLayerPerceptron(layers)
-  //    .model(weights)
-
 
   def computeGradients(
                         dataset: Dataset[_],
@@ -364,7 +406,7 @@ class IcePerceptronClassificationModel private[ml](
       .multiLayerPerceptron(layers)
       .model(weights)
 
-    val gradient: Gradient = new ANNGradient(iceModel.topology, dataStacker)
+    val gradient: ANNGradient2 = new ANNGradient2(iceModel.topology, dataStacker)
 
     val trainData: RDD[(Double, OldVector)] = dataStacker.stack(data).map { v =>
       (v._1, OldVectors.fromML(v._2))
@@ -384,29 +426,36 @@ class IcePerceptronClassificationModel private[ml](
       val n = w.size
       val bcW = data.context.broadcast(w)
 
-      val seqOp = (c: (OldVector, Double), v: (Double, OldVector)) =>
+      val seqOp = (c: (OldVector, OldVector, Double), v: (Double, OldVector)) =>
         (c, v) match {
-          case ((grad, loss), (label, features)) =>
+          case ((grad, grad2, loss), (label, features)) =>
             val denseGrad: OldVector = grad.toDense
+            val denseGrad2: OldVector = grad2.toDense
             val bcwV: OldVector = bcW.value
-            val l = gradient.compute(features, label, bcwV, denseGrad)
-            (denseGrad, loss + l)
+            val l = gradient.compute2(features, label, bcwV, denseGrad, denseGrad2.toArray)
+            (denseGrad, denseGrad2, loss + l)
         }
 
-      val combOp = (c1: (OldVector, Double), c2: (OldVector, Double)) =>
+      val combOp = (c1: (OldVector, OldVector, Double), c2: (OldVector, OldVector, Double)) =>
         (c1, c2) match {
-          case ((grad1, loss1), (grad2, loss2)) =>
+          case ((grad1, diag1, loss1), (grad2, diag2, loss2)) =>
             val denseGrad1 = grad1.toDense
             val denseGrad2 = grad2.toDense
             axpy(1.0, denseGrad2, denseGrad1)
-            (denseGrad1, loss1 + loss2)
+
+            val denseDiag1 = diag1.toDense;
+            val denseDiag2 = diag2.toDense;
+            axpy(1.0, denseDiag2, denseDiag1);
+
+            (denseGrad1, denseDiag1, loss1 + loss2)
         }
 
       val zeroSparseVector = OldVectors.sparse(n, Seq.empty)
-      val (gradientSum, lossSum) = trainData.treeAggregate((zeroSparseVector, 0.0))(seqOp, combOp)
+      val (gradientSum, gradient2Sum, lossSum) = trainData.treeAggregate((zeroSparseVector, zeroSparseVector, 0.0))(seqOp, combOp)
 
       for (w <- 0 until cumGradientArray.length) {
         cumGradientArray(w) = gradientSum(w);
+        cumG2Array(w) = gradient2Sum(w);
       }
 
       return lossSum;
