@@ -147,8 +147,9 @@ private[ann] class IceAffineLayerModel private[ann](
 
         for (k <- 0 until cumG2ofWeights.cols) {
           val a_k = input(k, m);
+          val computedG2 = scale * a_k * a_k;
 
-          cumG2ofWeights(i, k) += scale * a_k * a_k;
+          cumG2ofWeights(i, k) += computedG2;
         }
       }
     }
