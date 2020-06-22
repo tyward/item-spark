@@ -63,9 +63,6 @@ private[ann] class IceAffineLayerModel private[ann](
 
     // Used to hold each individual observation calculation, needed for ICE computations.
     val gradB = new BDV[Double](cumGrad.length);
-
-
-
     val weightGradB = new BDM[Double](w.rows, w.cols, gradB.data, gradB.offset)
     val biasGradB = new BDV[Double](gradB.data, gradB.offset + w.size, 1, b.length)
 
@@ -85,7 +82,7 @@ private[ann] class IceAffineLayerModel private[ann](
         }
       }
 
-      val iceFactor = 0.0;
+      val iceFactor = 1.0;
 
       // Now weightGradB contains the gradient just for this observation.
       // This is the average of a thing that is itself of order 1/m
@@ -165,12 +162,14 @@ private[ann] class IceAffineLayerModel private[ann](
     computePrevDelta(delta, output, prevDelta);
 
     var targetDelta: BDM[Double] = null;
+    var nextIsLoss = false;
 
     if (nextDelta != null) {
       targetDelta = nextDelta;
     }
     else {
       targetDelta = delta;
+      nextIsLoss = true;
     }
 
     // Loop over observations.
@@ -178,20 +177,49 @@ private[ann] class IceAffineLayerModel private[ann](
       // Loop over output indices.
       for (i <- 0 until gamma.rows) {
         val gamma_i = gamma(i, m);
-
         val prevOutput_i = prevOutput(i, m);
 
         val fprime_i = nextLayer.activationDeriv(prevOutput_i);
         val fprime2_i = nextLayer.activationSecondDeriv(prevOutput_i)
         val delta_i = targetDelta(i, m);
 
-        val scale = (gamma_i * fprime_i * fprime_i) + (delta_i * fprime2_i)
+        val deltaTerm = delta_i * fprime2_i;
+        val gammaTerm = (gamma_i * fprime_i * fprime_i);
+        val scale = gammaTerm + deltaTerm
 
-        for (k <- 0 until w.cols) {
-          val currWeight = w(i, k)
-          val computedGamma = scale * currWeight * currWeight;
-          // Inner summation.
-          prevGamma(k, m) += computedGamma
+        if (!nextIsLoss) {
+          for (k <- 0 until w.cols) {
+            val currWeight = w(i, k)
+            val computedGamma = scale * currWeight * currWeight;
+            // Inner summation.
+            prevGamma(k, m) += computedGamma
+          }
+        }
+        else {
+          // N.B: There are significant cross terms in the loss layer (due to the mutual exclusivity of the outputs), so we should not ignore them.
+          // On the plus side, these cross terms are easy and cheap to compute, so just do that here, computing W^T*J*W exactly.
+
+          for (k <- 0 until w.cols) {
+            val w_k = w(i, k)
+            prevGamma(k, m) += deltaTerm * w_k * w_k;
+
+            var subSum = 0.0;
+
+            for (u <- 0 until gamma.rows) {
+              val w_u = w(u, k);
+              val output_u = prevOutput(u, m);
+              var kron = 0.0;
+
+              if (u == i) {
+                kron = 1.0;
+              }
+
+              val elem = (kron - output_u) * prevOutput_i * w_u;
+              subSum += elem;
+            }
+
+            prevGamma(k, m) += subSum * w_k;
+          }
         }
       }
     }

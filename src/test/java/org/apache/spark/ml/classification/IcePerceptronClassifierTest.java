@@ -30,10 +30,11 @@ class IcePerceptronClassifierTest
 {
     private static final String[] INPUT_COLS = new String[]{"MTM_LTV", "INCENTIVE", "FIRSTTIME_BUYER",
             "UNIT_COUNT", "ORIG_CLTV", "ORIG_DTI", "ORIG_INTRATE", "PREPAYMENT_PENALTY"};
+    //private static final String[] INPUT_COLS = new String[]{"MTM_LTV"};
     private static final int STATUS_COUNT = 3;
 
 
-    private static final int[] LAYERS = new int[]{INPUT_COLS.length, 5, STATUS_COUNT};
+    private static final int[] LAYERS = new int[]{INPUT_COLS.length, 2, STATUS_COUNT};
     private static final int MAX_ITER = 500;
     //private static final int BLOCK_SIZE = 128;
     private static final int BLOCK_SIZE = 4 * 4096;
@@ -45,32 +46,32 @@ class IcePerceptronClassifierTest
     private static final double TOLERANCE = 1.0e-8;
     private static final double STEP_SIZE = 0.03;
 
-    @Test
-    void testICE()
-    {
-        final SparkSession spark = generateSparkSession();
-        final Dataset<Row> frame = generateData(spark);
-        final ClassificationModelEvaluator.EvaluationResult result = generateIceResult(frame, PRNG_SEED,
-                LAYERS, SAMPLE_SIZE, null, SOLVER);
-
-        PrintStream output = System.out;
-        printHeader(output);
-        printResults(result, output);
-    }
-
-    @Test
-    void testMLP()
-    {
-        final SparkSession spark = generateSparkSession();
-        final Dataset<Row> frame = generateData(spark);
-        final ClassificationModelEvaluator.EvaluationResult result = generateMleResult(frame, PRNG_SEED,
-                LAYERS, SAMPLE_SIZE, null, SOLVER);
-
-        PrintStream output = System.out;
-
-        printHeader(output);
-        printResults(result, output);
-    }
+//    @Test
+//    void testICE()
+//    {
+//        final SparkSession spark = generateSparkSession();
+//        final Dataset<Row> frame = generateData(spark);
+//        final ClassificationModelEvaluator.EvaluationResult result = generateIceResult(frame, PRNG_SEED,
+//                LAYERS, SAMPLE_SIZE, null, SOLVER);
+//
+//        PrintStream output = System.out;
+//        printHeader(output);
+//        printResults(result, output);
+//    }
+//
+//    @Test
+//    void testMLP()
+//    {
+//        final SparkSession spark = generateSparkSession();
+//        final Dataset<Row> frame = generateData(spark);
+//        final ClassificationModelEvaluator.EvaluationResult result = generateMleResult(frame, PRNG_SEED,
+//                LAYERS, SAMPLE_SIZE, null, SOLVER);
+//
+//        PrintStream output = System.out;
+//
+//        printHeader(output);
+//        printResults(result, output);
+//    }
 
     @Test
     void testSweep() throws Exception
@@ -133,19 +134,12 @@ class IcePerceptronClassifierTest
 
                         // ICE after here.
 
-//                        {
-//                            final ClassificationModelEvaluator.EvaluationResult iceResult = generateIceResult(frame,
-//                                    prngSeed, testLayers[k], sampleSizes[w], startingPoint.getModel().weights(),
-//                                    SOLVER);
-//                            printResults(iceResult, output);
-//                        }
 
-//                        {
-//                            final ClassificationModelEvaluator.EvaluationResult iceResult = generateIceResult(frame,
-//                                    prngSeed, testLayers[k], sampleSizes[w], startingPoint.getModel().weights(),
-//                                    SOLVER_GD);
-//                            printResults(iceResult, output);
-//                        }
+                        {
+                            final ClassificationModelEvaluator.EvaluationResult iceResult2 = generateIceResult(frame,
+                                    prngSeed, testLayers[k], sampleSizes[w], null, SOLVER_GD);
+                            printResults(iceResult2, output);
+                        }
 
                         {
                             final ClassificationModelEvaluator.EvaluationResult iceResult = generateIceResult(frame,
@@ -154,10 +148,20 @@ class IcePerceptronClassifierTest
                         }
 
                         {
-                            final ClassificationModelEvaluator.EvaluationResult iceResult2 = generateIceResult(frame,
-                                    prngSeed, testLayers[k], sampleSizes[w], null, SOLVER_GD);
-                            printResults(iceResult2, output);
+                            final ClassificationModelEvaluator.EvaluationResult iceResult = generateIceResult(frame,
+                                    prngSeed, testLayers[k], sampleSizes[w], startingPoint.getModel().weights(),
+                                    SOLVER_GD);
+                            printResults(iceResult, output);
                         }
+
+                        {
+                            final ClassificationModelEvaluator.EvaluationResult iceResult = generateIceResult(frame,
+                                    prngSeed, testLayers[k], sampleSizes[w], startingPoint.getModel().weights(),
+                                    SOLVER);
+                            printResults(iceResult, output);
+                        }
+
+
                     }
                 }
             }
@@ -218,7 +222,7 @@ class IcePerceptronClassifierTest
 
         IcePerceptronClassificationModel model = (IcePerceptronClassificationModel) iceFitter.fit(data.getFitting());
 
-        validateGradients(iceFitter, data, model);
+        //validateGradients(iceFitter, data, model);
 
         return ClassificationModelEvaluator
                 .evaluate(iceFitter,
@@ -241,21 +245,24 @@ class IcePerceptronClassifierTest
         final double[] fdGrad = new double[size];
         final double[] fdDiag = new double[size];
 
-        final double loss = model.computeGradients(data.getFitting().limit(1), model.weights(), grad, jDiag);
+        final Dataset<Row> fittingData = data.getFitting().limit(1);
+
+
+        final double loss = model.computeGradients(fittingData, model.weights(), grad, jDiag);
 
         for (int i = 0; i < weights.length; i++)
         {
             final double[] w2 = weights.clone();
 
-            final double h = Math.max(Math.abs(w2[i] * 1.0e-4), 1.0e-8);
+            final double h = Math.max(Math.abs(w2[i] * 1.0e-4), 1.0e-12);
             w2[i] += h;
 
             final double[] g2 = new double[size];
             final double[] jDiag2 = new double[size];
 
-            final double l2 = model.computeGradients(data.getFitting().limit(1), Vectors.dense(w2), g2, jDiag2);
+            final double lossUp = model.computeGradients(fittingData, Vectors.dense(w2), g2, jDiag2);
 
-            final double fdd = (l2 - loss) / h;
+            final double fdd = (lossUp - loss) / h;
 
             final double origGrad = grad[i];
             final double shiftGrad = g2[i];
@@ -266,6 +273,13 @@ class IcePerceptronClassifierTest
 
             fdGrad[i] = fdd;
             fdDiag[i] = fdd2;
+
+            w2[i] = weights[i] - h;
+            final double lossDown = model.computeGradients(fittingData, Vectors.dense(w2), g2, jDiag2);
+
+            final double fdd2a = (lossUp + lossDown - (2 * loss)) / (h * h);
+            final double fdd2b = (origGrad - g2[i]) / h;
+
 
             System.out.println("FDD[" + origGrad + "]: " + fdd);
             System.out.println("FDD2[" + origDiag + ", " + shiftDiag + "]: " + fdd2);
@@ -278,10 +292,45 @@ class IcePerceptronClassifierTest
         final double magRatio = MathTools.magnitude(fdGrad) / MathTools.magnitude(grad);
         final double magRatio2 = MathTools.magnitude(fdDiag) / MathTools.magnitude(jDiag);
 
+        final double[] fdGradA = new double[INPUT_COLS.length];
+        final double[] fdDiagA = new double[INPUT_COLS.length];
+
+
+        for (int i = 0; i < INPUT_COLS.length; i++)
+        {
+            // These are normalize, so the same H should work fine for everything.
+            final double h = 1.0e-6;
+//            final double scaleUp = 1.0 + h;
+//            final double scaleDown = 1.0 - h;
+
+            // Now update the contents of the row....
+            final Dataset<Row> fdUp = assemble(fittingData.withColumn(INPUT_COLS[i],
+                    functions.expr(INPUT_COLS[i] + " + " + h)));
+            final Dataset<Row> fdDown = assemble(fittingData.withColumn(INPUT_COLS[i],
+                    functions.expr(INPUT_COLS[i] + " - " + h)));
+
+            final double[] g2 = new double[size];
+            final double[] jDiag2 = new double[size];
+
+            final double lossUp = model.computeGradients(fdUp, Vectors.dense(weights), g2, jDiag2);
+            final double lossDown = model.computeGradients(fdDown, Vectors.dense(weights), g2, jDiag2);
+
+            final double fdd = (lossUp - loss) / h;
+            fdGradA[i] = fdd;
+
+            final double fddDown = (loss - lossDown) / h;
+
+            final double fdd2 = (lossUp + lossDown - (2 * loss)) / (h * h);
+            fdDiagA[i] = fdd2;
+        }
+
+        final double[] grad2 = new double[size];
+        final double[] jDiag2 = new double[size];
+        final double loss2 = model.computeGradients(fittingData, model.weights(), grad2, jDiag2);
 
         System.out.println("Cos[" + magRatio + "]: " + fdCos);
         System.out.println("Cos2[" + magRatio2 + "]: " + fdCos2);
-
+        System.out.println("Done.");
 
     }
 
@@ -351,12 +400,20 @@ class IcePerceptronClassifierTest
         return spark;
     }
 
+    private static final Dataset<Row> assemble(final Dataset<Row> input)
+    {
+        final Dataset<Row> dropped = input.drop("features");
+
+        VectorAssembler assembler =
+                new VectorAssembler().setInputCols(INPUT_COLS).setOutputCol("features").setHandleInvalid("skip");
+        Dataset<Row> transformed = assembler.transform(dropped);
+        return transformed;
+    }
+
     private static final GeneratedData prepareData(final Dataset<Row> raw_, final long prngSeed_,
                                                    final int sampleSize_)
     {
-        VectorAssembler assembler =
-                new VectorAssembler().setInputCols(INPUT_COLS).setOutputCol("features").setHandleInvalid("skip");
-        Dataset<Row> transformed = assembler.transform(raw_);
+        Dataset<Row> transformed = assemble(raw_);
         Dataset<Row>[] datasets = transformed.randomSplit(new double[]{0.25, 0.75}, prngSeed_);
 
         Dataset<Row> fitting = datasets[0].limit(sampleSize_);
