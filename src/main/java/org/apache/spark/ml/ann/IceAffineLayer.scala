@@ -57,7 +57,7 @@ private[ann] class IceAffineLayerModel private[ann](
     BreezeUtil.dgemm(1.0, w.t, delta, 0.0, prevDelta)
   }
 
-  override def gradIce(delta: BDM[Double], input: BDM[Double], g2: BDV[Double], g2Weight: BDV[Double], cumGrad: BDV[Double]): Double = {
+  override def gradIce(delta: BDM[Double], input: BDM[Double], g2: BDV[Double], g2Weight: BDV[Double], sampleCount : Long, cumGrad: BDV[Double]): Double = {
     //grad(delta, input, cumGrad);
     //return 0.0;
 
@@ -66,7 +66,8 @@ private[ann] class IceAffineLayerModel private[ann](
     val weightGradB = new BDM[Double](w.rows, w.cols, gradB.data, gradB.offset)
     val biasGradB = new BDV[Double](gradB.data, gradB.offset + w.size, 1, b.length)
 
-    val invObsCount = 1.0 / input.cols;
+    val invBlockCount = 1.0 / input.cols;
+    val invObsCount = 1.0 / sampleCount;
     var lossAdj = 0.0;
 
     // Loop over observations.
@@ -85,7 +86,9 @@ private[ann] class IceAffineLayerModel private[ann](
       val iceFactor = 1.0;
 
       // Now weightGradB contains the gradient just for this observation.
-      // This is the average of a thing that is itself of order 1/m
+      // This is the average of a thing that is itself of order 1/m.
+      // N.B: The ICE term needs the count of the entire fitting sample (invObsCount), but the averaging done here needs
+      // the count of just this block (invBlockCount).
       val iceAdjustment = iceFactor * invObsCount * IceTools.computeIce3Sum(gradB.data, DoubleVector.of(g2.data, false),
         DoubleVector.of(g2Weight.data, false), false);
 
@@ -94,13 +97,13 @@ private[ann] class IceAffineLayerModel private[ann](
 
       for (i <- 0 until gradB.length) {
         // Again, averaging something where adjScale ~ 1/m.
-        val nextGrad = invObsCount * gradB(i);
+        val nextGrad = invBlockCount * gradB(i);
         val gradAdj = nextGrad + (nextGrad * adjScale);
         cumGrad(i) += gradAdj;
       }
     }
 
-    lossAdj *= invObsCount;
+    lossAdj *= invBlockCount;
     return lossAdj
   }
 

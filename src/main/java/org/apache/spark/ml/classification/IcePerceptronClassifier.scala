@@ -133,7 +133,7 @@ class IcePerceptronClassifier @Since("1.5.0")(
       case Row(features: Vector, encodedLabel: Vector) => (features, encodedLabel)
     }
 
-    val topology = IceFeedForwardTopology.multiLayerPerceptron(myLayers)
+    val topology = IceFeedForwardTopology.multiLayerPerceptron(myLayers, dataset.count())
     val trainer = new FeedForwardTrainer(topology, myLayers(0), myLayers.last)
     if (isDefined(initialWeights)) {
       trainer.setWeights($(initialWeights))
