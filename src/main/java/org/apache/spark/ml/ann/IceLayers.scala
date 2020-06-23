@@ -201,28 +201,54 @@ private[ml] class IceFeedForwardModel private(
     val g2Weights = IceTools.computeJWeight(DoubleVector.of(cumG2Array, false)).collapse();
 
     offset = 0;
-    var lossAdj = 0.0;
 
     val g2Vec: DoubleVector = DoubleVector.of(cumG2Array, false);
-    //val g2WeightVec: DoubleVector = DoubleVector.of(g2Weights, false);
+    val weightGradArray: Array[BDM[Double]] = new Array[BDM[Double]](layerModels.length);
+    val biasGradArray: Array[BDV[Double]] = new Array[BDV[Double]](layerModels.length);
+    val tmpGradArray = new Array[Double](cumGradientArray.length);
 
-
+    // First, make our tmp arrays for the gradients.
     for (i <- 0 until layerModels.length) {
-      val input = if (i == 0) data else outputs(i - 1)
-      val gradVec = new BDV[Double](cumGradientArray, offset, 1, layers(i).weightSize)
-      //      val g2Vec = new BDV[Double](cumG2Array, offset, 1, layers(i).weightSize)
-      //      val g2Weight = new BDV[Double](g2Weights, offset, 1, layers(i).weightSize)
+      val weightSize = layers(i).weightSize;
+      if (weightSize != 0) {
+        val outputSize = layers(i).getOutputSize(1);
+        val inputSize = (weightSize / outputSize) - 1;
 
-      //      val gradB = new BDV[Double](cumGrad.length);
-      //      val weightGradB = new BDM[Double](w.rows, w.cols, gradB.data, gradB.offset)
-      //      val biasGradB = new BDV[Double](gradB.data, gradB.offset + w.size, 1, b.length)
+        weightGradArray(i) = new BDM[Double](outputSize, inputSize, tmpGradArray, offset)
+        biasGradArray(i) = new BDV[Double](tmpGradArray, offset + (inputSize * outputSize), 1, outputSize)
+      }
 
-
-      lossAdj += typedLayerModels(i).gradIce(deltas(i), input, g2Vec, g2Weights, sampleCount, gradVec);
-
-      offset += layers(i).weightSize
+      offset += weightSize
     }
 
+    offset = 0;
+    val invObsCount = 1.0 / sampleCount;
+    val invBlockCount = 1.0 / data.cols;
+    var lossAdj: Double = 0.0;
+
+    for (m <- 0 until data.cols) {
+      for (i <- 0 until layerModels.length) {
+        val input = if (i == 0) data else outputs(i - 1)
+
+        typedLayerModels(i).singleGrad(deltas(i), input, m, weightGradArray(i), biasGradArray(i))
+      }
+
+      // Now, tmpGradArray is fully filled, so just compute the final ICE gradient.
+      val iceAdjustment = invObsCount * IceTools.computeIce3Sum(tmpGradArray, g2Vec,
+        g2Weights, false);
+
+      lossAdj += iceAdjustment;
+      val adjScale = 2.0 * iceAdjustment;
+
+      for (i <- 0 until tmpGradArray.length) {
+        // Again, averaging something where adjScale ~ 1/m.
+        val nextGrad = invBlockCount * tmpGradArray(i);
+        val gradAdj = nextGrad + (nextGrad * adjScale);
+        cumGradientArray(i) += gradAdj;
+      }
+    }
+
+    lossAdj *= invBlockCount;
     val iceLoss = loss + lossAdj;
     iceLoss
   }

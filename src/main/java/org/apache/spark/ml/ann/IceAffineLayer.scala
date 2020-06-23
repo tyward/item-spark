@@ -57,7 +57,8 @@ private[ann] class IceAffineLayerModel private[ann](
     BreezeUtil.dgemm(1.0, w.t, delta, 0.0, prevDelta)
   }
 
-  override def gradIce(delta: BDM[Double], input: BDM[Double], g2: DoubleVector, g2Weight: DoubleVector, sampleCount: Long, cumGrad: BDV[Double]): Double = {
+  override def gradIce(delta: BDM[Double], input: BDM[Double], g2: DoubleVector, g2Weight: DoubleVector,
+                       sampleCount: Long, cumGrad: BDV[Double]): Double = {
     //grad(delta, input, cumGrad);
     //return 0.0;
 
@@ -77,15 +78,6 @@ private[ann] class IceAffineLayerModel private[ann](
     for (m <- 0 until input.cols) {
 
       singleGrad(delta, input, m, weightGradB, biasGradB);
-      //      for (i <- 0 until weightGradB.rows) {
-      //        val delta_i = delta(i, m);
-      //        biasGradB(i) = delta_i;
-      //
-      //        for (k <- 0 until weightGradB.cols) {
-      //          val a_k = input(k, m)
-      //          weightGradB(i, k) = delta_i * a_k;
-      //        }
-      //      }
 
       val iceFactor = 1.0;
 
