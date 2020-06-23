@@ -2,8 +2,9 @@ package org.apache.spark.ml.ann
 
 import java.util.Random
 
-import breeze.linalg.{*, DenseMatrix => BDM, DenseVector => BDV, sum => Bsum}
+import breeze.linalg.{DenseMatrix => BDM, DenseVector => BDV, sum => Bsum}
 import breeze.numerics.{log => brzlog}
+import edu.columbia.tjw.item.algo.DoubleVector
 
 private[ann] class IceLossLayer extends GeneralIceLayer {
   override val weightSize = 0
@@ -64,20 +65,23 @@ private[ann] class IceCrossEntropyLossLayerModel extends GeneralIceLayerModel wi
     /* loss layer model does not have weights */
   }
 
-  override def gradIce(delta: BDM[Double], input: BDM[Double], g2: BDV[Double], g2Weight: BDV[Double], sampleCount : Long, cumGrad: BDV[Double]): Double = { return 0.0;}
+  override def gradIce(delta: BDM[Double], input: BDM[Double], g2: DoubleVector, g2Weight: DoubleVector, sampleCount: Long, cumGrad: BDV[Double]): Double = {
+    return 0.0;
+  }
 
+  override def singleGrad(delta: BDM[Double], input: BDM[Double], m: Int, weightGradB: BDM[Double], biasGradB: BDV[Double]): Unit = {}
 
-  override def grad2(delta: BDM[Double],  nextDelta: BDM[Double],gamma: BDM[Double], input: BDM[Double], output: BDM[Double], cumG2: BDV[Double]): Unit = {}
+  override def grad2(delta: BDM[Double], nextDelta: BDM[Double], gamma: BDM[Double], input: BDM[Double], output: BDM[Double], cumG2: BDV[Double]): Unit = {}
 
-  override def computePrevDeltaExpanded(delta: BDM[Double], nextDelta: BDM[Double] , gamma: BDM[Double], prevOutput: BDM[Double], output: BDM[Double], prevDelta: BDM[Double], prevGamma: BDM[Double]): Unit = {
+  override def computePrevDeltaExpanded(delta: BDM[Double], nextDelta: BDM[Double], gamma: BDM[Double], prevOutput: BDM[Double], output: BDM[Double], prevDelta: BDM[Double], prevGamma: BDM[Double]): Unit = {
     computePrevDelta(delta, output, prevDelta);
   }
 
   override def loss(output: BDM[Double], target: BDM[Double], delta: BDM[Double], gamma: BDM[Double]): Double = {
     ApplyInPlace(output, target, delta, (o: Double, t: Double) => o - t)
 
-    for(i <- 0 until target.cols) {
-      for(j <- 0 until target.rows) {
+    for (i <- 0 until target.cols) {
+      for (j <- 0 until target.rows) {
         val o = output(j, i);
         gamma(j, i) = (1 - o) * o
       }
@@ -87,15 +91,15 @@ private[ann] class IceCrossEntropyLossLayerModel extends GeneralIceLayerModel wi
   }
 
 
-  override def activationDeriv(input: Double) : Double = {
+  override def activationDeriv(input: Double): Double = {
     1.0
   }
 
-  override def activationSecondDeriv(input: Double) : Double = {
+  override def activationSecondDeriv(input: Double): Double = {
     0.0
   }
 
-  def setNextLayer(nextLayer: GeneralIceLayerModel) : Unit = {
+  def setNextLayer(nextLayer: GeneralIceLayerModel): Unit = {
     // Do nothing.
   }
 

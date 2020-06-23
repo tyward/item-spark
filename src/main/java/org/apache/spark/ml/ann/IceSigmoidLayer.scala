@@ -3,6 +3,7 @@ package org.apache.spark.ml.ann
 import java.util.Random
 
 import breeze.linalg.{DenseMatrix => BDM, DenseVector => BDV}
+import edu.columbia.tjw.item.algo.DoubleVector
 
 
 /**
@@ -48,9 +49,11 @@ private[ann] class IceSigmoidLayerModel private[ann](val layer: IceSigmoidLayer)
     delta :*= nextDelta
   }
 
-  override def gradIce(delta: BDM[Double], input: BDM[Double], g2: BDV[Double], g2Weight: BDV[Double], sampleCount : Long, cumGrad: BDV[Double]): Double = {
+  override def gradIce(delta: BDM[Double], input: BDM[Double], g2: DoubleVector, g2Weight: DoubleVector, sampleCount : Long, cumGrad: BDV[Double]): Double = {
     return 0.0;
   }
+
+  override def singleGrad(delta: BDM[Double], input: BDM[Double], m: Int, weightGradB: BDM[Double], biasGradB: BDV[Double]): Unit = {}
 
   override def grad(delta: BDM[Double], input: BDM[Double], cumGrad: BDV[Double]): Unit = {}
 

@@ -44,7 +44,9 @@ private[ann] trait GeneralIceLayerModel extends LayerModel {
 
   def computePrevDeltaExpanded(delta: BDM[Double], nextDelta: BDM[Double], gamma: BDM[Double], prevOutput: BDM[Double], output: BDM[Double], prevDelta: BDM[Double], prevGamma: BDM[Double]): Unit
 
-  def gradIce(delta: BDM[Double], input: BDM[Double], g2: BDV[Double], g2Weight: BDV[Double], sampleCount : Long, cumGrad: BDV[Double]): Double
+  def gradIce(delta: BDM[Double], input: BDM[Double], g2: DoubleVector, g2Weight: DoubleVector, sampleCount: Long, cumGrad: BDV[Double]): Double
+
+  def singleGrad(delta: BDM[Double], input: BDM[Double], m: Int, weightGradB: BDM[Double], biasGradB: BDV[Double]): Unit
 
   def grad2(delta: BDM[Double], nextDelta: BDM[Double], gamma: BDM[Double], input: BDM[Double], output: BDM[Double], cumG2: BDV[Double]): Unit
 
@@ -80,7 +82,7 @@ private[ann] trait GeneralIceLayerModel extends LayerModel {
  */
 private[ml] class IceFeedForwardModel private(
                                                val weights: Vector,
-                                               val topology: IceFeedForwardTopology, val sampleCount : Long) extends TopologyModel {
+                                               val topology: IceFeedForwardTopology, val sampleCount: Long) extends TopologyModel {
   val typedLayers: Array[GeneralIceLayer] = topology.layers
   val typedLayerModels = new Array[GeneralIceLayerModel](typedLayers.length)
 
@@ -196,18 +198,27 @@ private[ml] class IceFeedForwardModel private(
     }
 
     //compute the weights...
-    val g2Weights = IceTools.computeJWeight(DoubleVector.of(cumG2Array, false)).copyOfUnderlying();
+    val g2Weights = IceTools.computeJWeight(DoubleVector.of(cumG2Array, false)).collapse();
 
     offset = 0;
     var lossAdj = 0.0;
 
+    val g2Vec: DoubleVector = DoubleVector.of(cumG2Array, false);
+    //val g2WeightVec: DoubleVector = DoubleVector.of(g2Weights, false);
+
+
     for (i <- 0 until layerModels.length) {
       val input = if (i == 0) data else outputs(i - 1)
       val gradVec = new BDV[Double](cumGradientArray, offset, 1, layers(i).weightSize)
-      val g2Vec = new BDV[Double](cumG2Array, offset, 1, layers(i).weightSize)
-      val g2Weight = new BDV[Double](g2Weights, offset, 1, layers(i).weightSize)
+      //      val g2Vec = new BDV[Double](cumG2Array, offset, 1, layers(i).weightSize)
+      //      val g2Weight = new BDV[Double](g2Weights, offset, 1, layers(i).weightSize)
 
-      lossAdj += typedLayerModels(i).gradIce(deltas(i), input, g2Vec, g2Weight, sampleCount, gradVec);
+      //      val gradB = new BDV[Double](cumGrad.length);
+      //      val weightGradB = new BDM[Double](w.rows, w.cols, gradB.data, gradB.offset)
+      //      val biasGradB = new BDV[Double](gradB.data, gradB.offset + w.size, 1, b.length)
+
+
+      lossAdj += typedLayerModels(i).gradIce(deltas(i), input, g2Vec, g2Weights, sampleCount, gradVec);
 
       offset += layers(i).weightSize
     }
@@ -246,7 +257,7 @@ private[ann] object IceFeedForwardModel {
    * @param weights  weights
    * @return model
    */
-  def apply(topology: IceFeedForwardTopology, weights: Vector, sampleSize : Long): IceFeedForwardModel = {
+  def apply(topology: IceFeedForwardTopology, weights: Vector, sampleSize: Long): IceFeedForwardModel = {
     val expectedWeightSize = topology.layers.map(_.weightSize).sum
     require(weights.size == expectedWeightSize,
       s"Expected weight vector of size ${expectedWeightSize} but got size ${weights.size}.")

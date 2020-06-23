@@ -57,7 +57,7 @@ private[ann] class IceAffineLayerModel private[ann](
     BreezeUtil.dgemm(1.0, w.t, delta, 0.0, prevDelta)
   }
 
-  override def gradIce(delta: BDM[Double], input: BDM[Double], g2: BDV[Double], g2Weight: BDV[Double], sampleCount : Long, cumGrad: BDV[Double]): Double = {
+  override def gradIce(delta: BDM[Double], input: BDM[Double], g2: DoubleVector, g2Weight: DoubleVector, sampleCount: Long, cumGrad: BDV[Double]): Double = {
     //grad(delta, input, cumGrad);
     //return 0.0;
 
@@ -70,18 +70,22 @@ private[ann] class IceAffineLayerModel private[ann](
     val invObsCount = 1.0 / sampleCount;
     var lossAdj = 0.0;
 
+    //val g2Vec = DoubleVector.of(g2.toArray, false);
+    //val g2WeightVec = DoubleVector.of(g2Weight.toArray, false);
+
     // Loop over observations.
     for (m <- 0 until input.cols) {
 
-      for (i <- 0 until weightGradB.rows) {
-        val delta_i = delta(i, m);
-        biasGradB(i) = delta_i;
-
-        for (k <- 0 until weightGradB.cols) {
-          val a_k = input(k, m)
-          weightGradB(i, k) = delta_i * a_k;
-        }
-      }
+      singleGrad(delta, input, m, weightGradB, biasGradB);
+      //      for (i <- 0 until weightGradB.rows) {
+      //        val delta_i = delta(i, m);
+      //        biasGradB(i) = delta_i;
+      //
+      //        for (k <- 0 until weightGradB.cols) {
+      //          val a_k = input(k, m)
+      //          weightGradB(i, k) = delta_i * a_k;
+      //        }
+      //      }
 
       val iceFactor = 1.0;
 
@@ -89,8 +93,8 @@ private[ann] class IceAffineLayerModel private[ann](
       // This is the average of a thing that is itself of order 1/m.
       // N.B: The ICE term needs the count of the entire fitting sample (invObsCount), but the averaging done here needs
       // the count of just this block (invBlockCount).
-      val iceAdjustment = iceFactor * invObsCount * IceTools.computeIce3Sum(gradB.data, DoubleVector.of(g2.data, false),
-        DoubleVector.of(g2Weight.data, false), false);
+      val iceAdjustment = iceFactor * invObsCount * IceTools.computeIce3Sum(gradB.data, g2,
+        g2Weight, false);
 
       lossAdj += iceAdjustment;
       val adjScale = 2.0 * iceAdjustment;
@@ -105,6 +109,18 @@ private[ann] class IceAffineLayerModel private[ann](
 
     lossAdj *= invBlockCount;
     return lossAdj
+  }
+
+  override def singleGrad(delta: BDM[Double], input: BDM[Double], m: Int, weightGradB: BDM[Double], biasGradB: BDV[Double]): Unit = {
+    for (i <- 0 until weightGradB.rows) {
+      val delta_i = delta(i, m);
+      biasGradB(i) = delta_i;
+
+      for (k <- 0 until weightGradB.cols) {
+        val a_k = input(k, m)
+        weightGradB(i, k) = delta_i * a_k;
+      }
+    }
   }
 
   override def grad(delta: BDM[Double], input: BDM[Double], cumGrad: BDV[Double]): Unit = {
