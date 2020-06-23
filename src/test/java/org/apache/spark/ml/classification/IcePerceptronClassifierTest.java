@@ -28,8 +28,8 @@ import java.util.Random;
 
 class IcePerceptronClassifierTest
 {
-    private static final String[] INPUT_COLS = new String[]{"MTM_LTV", "INCENTIVE", "FIRSTTIME_BUYER",
-            "UNIT_COUNT", "ORIG_CLTV", "ORIG_DTI", "ORIG_INTRATE", "PREPAYMENT_PENALTY"};
+    private static final String[] INPUT_COLS = new String[]{"AGE", "MTM_LTV", "INCENTIVE", "CREDIT_SCORE",
+            "FIRSTTIME_BUYER", "UNIT_COUNT", "ORIG_CLTV", "ORIG_DTI", "UPB", "ORIG_INTRATE", "PREPAYMENT_PENALTY"};
     //private static final String[] INPUT_COLS = new String[]{"MTM_LTV"};
     private static final int STATUS_COUNT = 3;
 
@@ -37,12 +37,12 @@ class IcePerceptronClassifierTest
     private static final int[] LAYERS = new int[]{INPUT_COLS.length, 2, STATUS_COUNT};
     private static final int MAX_ITER = 500;
     //private static final int BLOCK_SIZE = 128;
-    private static final int BLOCK_SIZE = 4 * 4096;
-    private static final int SAMPLE_SIZE = BLOCK_SIZE;
+    private static final int BLOCK_SIZE = 4 * 1024;
+    private static final int SAMPLE_SIZE = 4 * BLOCK_SIZE;
 
     private static final String SOLVER = "l-bfgs";
     private static final String SOLVER_GD = "gd";
-    private static final int PRNG_SEED = 12345;
+    private static final long PRNG_SEED = 0xabcdef123456L;
     private static final double TOLERANCE = 1.0e-8;
     private static final double STEP_SIZE = 0.03;
 
@@ -79,19 +79,23 @@ class IcePerceptronClassifierTest
         final SparkSession spark = generateSparkSession();
         final Dataset<Row> frame = generateData(spark);
 
-        final Random rand = RandomTool.getRandom(PrngType.SECURE);
+        final Random rand = RandomTool.getRandom(PrngType.SECURE, PRNG_SEED);
 
-        final int[][] testLayers = new int[4][];
-        testLayers[0] = new int[]{INPUT_COLS.length, STATUS_COUNT};
-        testLayers[1] = new int[]{INPUT_COLS.length, 5, STATUS_COUNT};
-        //testLayers[2] = new int[]{INPUT_COLS.length, 8, STATUS_COUNT};
-        testLayers[2] = new int[]{INPUT_COLS.length, 5, 5, STATUS_COUNT};
+        final int[][] testLayers = new int[][]{
+//                {INPUT_COLS.length, STATUS_COUNT},
+//                {INPUT_COLS.length, 5, STATUS_COUNT},
+//                {INPUT_COLS.length, 8, 5, STATUS_COUNT},
+                {INPUT_COLS.length, INPUT_COLS.length, 8, 5, STATUS_COUNT},
+        };
         //testLayers[4] = new int[]{INPUT_COLS.length, 8, 5, STATUS_COUNT};
         //testLayers[5] = new int[]{INPUT_COLS.length, 8, 8, STATUS_COUNT};
-        testLayers[3] = new int[]{INPUT_COLS.length, 8, 5, 5, STATUS_COUNT};
+        //testLayers[3] = new int[]{INPUT_COLS.length, 8, 5, 5, STATUS_COUNT};
 
-        final int[] sampleSizes = new int[]{128, 256, 512, 1024, 2048, 4096, 8 * 1024, 16 * 1024, 32 * 1024,
-                64 * 1024, 128 * 1024};
+        final int[] sampleSizes = new int[]{
+                //128, 256, 512, 1024, 2048,
+                4096, 8 * 1024, 16 * 1024, 32 * 1024,
+                64 * 1024,
+                128 * 1024};
 
         final int repCount = 10;
 
@@ -107,61 +111,45 @@ class IcePerceptronClassifierTest
                     for (int i = 0; i < repCount; i++)
                     {
                         final long prngSeed = rand.nextLong();
+                        final GeneratedData data = prepareData(frame, prngSeed, sampleSizes[w]);
 
-                        final ClassificationModelEvaluator.EvaluationResult startingPoint = generateMleResult(frame,
-                                prngSeed, testLayers[k], sampleSizes[w], null, SOLVER_GD);
+                        final ClassificationModelEvaluator.EvaluationResult startingPoint = generateMleResult(data,
+                                prngSeed, testLayers[k], null, SOLVER);
                         printResults(startingPoint, output);
 
+//                        {
+//                            final ClassificationModelEvaluator.EvaluationResult mlpResult = generateMleResult(data,
+//                                    prngSeed, testLayers[k], null, SOLVER);
+//                            printResults(mlpResult, output);
+//                        }
+
                         {
-                            final ClassificationModelEvaluator.EvaluationResult mlpResult = generateMleResult(frame,
-                                    prngSeed, testLayers[k], sampleSizes[w], null, SOLVER);
-                            printResults(mlpResult, output);
+                            final ClassificationModelEvaluator.EvaluationResult mlpResult2 = generateMleResult(data,
+                                    prngSeed, testLayers[k], startingPoint.getModel().weights(),
+                                    SOLVER);
+                            printResults(mlpResult2, output);
                         }
-
-//                        {
-//                            final ClassificationModelEvaluator.EvaluationResult mlpResult2 = generateMleResult(frame,
-//                                    prngSeed, testLayers[k], sampleSizes[w], startingPoint.getModel().weights(),
-//                                    SOLVER);
-//                            printResults(mlpResult2, output);
-//                        }
-
-//                        {
-//                            final ClassificationModelEvaluator.EvaluationResult mlpResult2 = generateMleResult(frame,
-//                                    prngSeed, testLayers[k], sampleSizes[w], startingPoint.getModel().weights(),
-//                                    SOLVER_GD);
-//                            printResults(mlpResult2, output);
-//                        }
 
                         // ICE after here.
-
-
                         {
-                            final ClassificationModelEvaluator.EvaluationResult iceResult2 = generateIceResult(frame,
-                                    prngSeed, testLayers[k], sampleSizes[w], null, SOLVER_GD);
-                            printResults(iceResult2, output);
-                        }
-
-                        {
-                            final ClassificationModelEvaluator.EvaluationResult iceResult = generateIceResult(frame,
-                                    prngSeed, testLayers[k], sampleSizes[w], null, SOLVER);
+                            final ClassificationModelEvaluator.EvaluationResult iceResult = generateIceResult(data,
+                                    prngSeed, testLayers[k], null, SOLVER);
                             printResults(iceResult, output);
                         }
 
-                        {
-                            final ClassificationModelEvaluator.EvaluationResult iceResult = generateIceResult(frame,
-                                    prngSeed, testLayers[k], sampleSizes[w], startingPoint.getModel().weights(),
-                                    SOLVER_GD);
-                            printResults(iceResult, output);
-                        }
+//                        {
+//                            final ClassificationModelEvaluator.EvaluationResult iceResult = generateIceResult(data,
+//                                    prngSeed, testLayers[k], startingPoint.getModel().weights(),
+//                                    SOLVER_GD);
+//                            printResults(iceResult, output);
+//                        }
 
                         {
-                            final ClassificationModelEvaluator.EvaluationResult iceResult = generateIceResult(frame,
-                                    prngSeed, testLayers[k], sampleSizes[w], startingPoint.getModel().weights(),
+                            final ClassificationModelEvaluator.EvaluationResult iceResult = generateIceResult(data,
+                                    prngSeed, testLayers[k], startingPoint.getModel().weights(),
                                     SOLVER);
                             printResults(iceResult, output);
                         }
-
-
                     }
                 }
             }
@@ -179,15 +167,15 @@ class IcePerceptronClassifierTest
     }
 
 
-    private ClassificationModelEvaluator.EvaluationResult generateMleResult(Dataset<Row> raw, final long prngSeed_,
+    private ClassificationModelEvaluator.EvaluationResult generateMleResult(final GeneratedData data_,
+                                                                            final long prngSeed_,
                                                                             final int[] layers_,
-                                                                            final int sampleSize_,
                                                                             final Vector startingPoint_,
                                                                             final String solver_)
     {
         MultilayerPerceptronClassifier mlpFitter = new MultilayerPerceptronClassifier().setLabelCol("NEXT_STATUS");
         mlpFitter.setLayers(layers_).setSeed(prngSeed_).setLabelCol("NEXT_STATUS")
-                .setMaxIter(MAX_ITER).setBlockSize(sampleSize_).setSolver(solver_).setTol(TOLERANCE)
+                .setMaxIter(MAX_ITER).setBlockSize(BLOCK_SIZE).setSolver(solver_).setTol(TOLERANCE)
                 .setStepSize(STEP_SIZE);
 
         if (null != startingPoint_)
@@ -195,22 +183,22 @@ class IcePerceptronClassifierTest
             mlpFitter.setInitialWeights(startingPoint_);
         }
 
-        final GeneratedData data = prepareData(raw, prngSeed_, sampleSize_);
         return ClassificationModelEvaluator
                 .evaluate(mlpFitter, "MLE[" + (startingPoint_ == null) + "][" + solver_ + "]",
-                        data.getFitting(), data.getTesting(),
+                        data_.getFitting(), data_.getTesting(),
                         prngSeed_,
                         layers_);
     }
 
-    private ClassificationModelEvaluator.EvaluationResult generateIceResult(Dataset<Row> raw, final long prngSeed_,
-                                                                            final int[] layers_, final int sampleSize_,
+    private ClassificationModelEvaluator.EvaluationResult generateIceResult(GeneratedData data_,
+                                                                            final long prngSeed_,
+                                                                            final int[] layers_,
                                                                             final Vector startingPoint_,
                                                                             final String solver_)
     {
         IcePerceptronClassifier iceFitter = new IcePerceptronClassifier().setLabelCol("NEXT_STATUS");
         iceFitter.setLayers(layers_).setSeed(prngSeed_).setLabelCol("NEXT_STATUS")
-                .setMaxIter(MAX_ITER).setBlockSize(sampleSize_).setSolver(solver_).setTol(TOLERANCE)
+                .setMaxIter(MAX_ITER).setBlockSize(BLOCK_SIZE).setSolver(solver_).setTol(TOLERANCE)
                 .setStepSize(STEP_SIZE);
 
         if (null != startingPoint_)
@@ -218,16 +206,14 @@ class IcePerceptronClassifierTest
             iceFitter.setInitialWeights(startingPoint_);
         }
 
-        final GeneratedData data = prepareData(raw, prngSeed_, sampleSize_);
-
-        IcePerceptronClassificationModel model = (IcePerceptronClassificationModel) iceFitter.fit(data.getFitting());
-
+        //raw.show();
+        //IcePerceptronClassificationModel model = (IcePerceptronClassificationModel) iceFitter.fit(data.getFitting());
         //validateGradients(iceFitter, data, model);
 
         return ClassificationModelEvaluator
                 .evaluate(iceFitter,
-                        "ICE[" + (startingPoint_ == null) + "][" + solver_ + "]", data.getFitting(),
-                        data.getTesting(),
+                        "ICE[" + (startingPoint_ == null) + "][" + solver_ + "]", data_.getFitting(),
+                        data_.getTesting(),
                         prngSeed_,
                         layers_);
     }
@@ -416,7 +402,7 @@ class IcePerceptronClassifierTest
         Dataset<Row> transformed = assemble(raw_);
         Dataset<Row>[] datasets = transformed.randomSplit(new double[]{0.25, 0.75}, prngSeed_);
 
-        Dataset<Row> fitting = datasets[0].limit(sampleSize_);
+        Dataset<Row> fitting = datasets[0].orderBy(functions.rand(prngSeed_)).limit(sampleSize_);
         Dataset<Row> testing = datasets[1];
 
         fitting.persist(StorageLevel.MEMORY_AND_DISK());
