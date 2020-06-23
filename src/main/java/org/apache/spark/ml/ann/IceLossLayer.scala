@@ -65,10 +65,6 @@ private[ann] class IceCrossEntropyLossLayerModel extends GeneralIceLayerModel wi
     /* loss layer model does not have weights */
   }
 
-  override def gradIce(delta: BDM[Double], input: BDM[Double], g2: DoubleVector, g2Weight: DoubleVector, sampleCount: Long, cumGrad: BDV[Double]): Double = {
-    return 0.0;
-  }
-
   override def singleGrad(delta: BDM[Double], input: BDM[Double], m: Int, weightGradB: BDM[Double], biasGradB: BDV[Double]): Unit = {}
 
   override def grad2(delta: BDM[Double], nextDelta: BDM[Double], gamma: BDM[Double], input: BDM[Double], output: BDM[Double], cumG2: BDV[Double]): Unit = {}

@@ -44,8 +44,6 @@ private[ann] trait GeneralIceLayerModel extends LayerModel {
 
   def computePrevDeltaExpanded(delta: BDM[Double], nextDelta: BDM[Double], gamma: BDM[Double], prevOutput: BDM[Double], output: BDM[Double], prevDelta: BDM[Double], prevGamma: BDM[Double]): Unit
 
-  def gradIce(delta: BDM[Double], input: BDM[Double], g2: DoubleVector, g2Weight: DoubleVector, sampleCount: Long, cumGrad: BDV[Double]): Double
-
   def singleGrad(delta: BDM[Double], input: BDM[Double], m: Int, weightGradB: BDM[Double], biasGradB: BDV[Double]): Unit
 
   def grad2(delta: BDM[Double], nextDelta: BDM[Double], gamma: BDM[Double], input: BDM[Double], output: BDM[Double], cumG2: BDV[Double]): Unit

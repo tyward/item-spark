@@ -57,52 +57,6 @@ private[ann] class IceAffineLayerModel private[ann](
     BreezeUtil.dgemm(1.0, w.t, delta, 0.0, prevDelta)
   }
 
-  override def gradIce(delta: BDM[Double], input: BDM[Double], g2: DoubleVector, g2Weight: DoubleVector,
-                       sampleCount: Long, cumGrad: BDV[Double]): Double = {
-    //grad(delta, input, cumGrad);
-    //return 0.0;
-
-    // Used to hold each individual observation calculation, needed for ICE computations.
-    val gradB = new BDV[Double](cumGrad.length);
-    val weightGradB = new BDM[Double](w.rows, w.cols, gradB.data, gradB.offset)
-    val biasGradB = new BDV[Double](gradB.data, gradB.offset + w.size, 1, b.length)
-
-    val invBlockCount = 1.0 / input.cols;
-    val invObsCount = 1.0 / sampleCount;
-    var lossAdj = 0.0;
-
-    //val g2Vec = DoubleVector.of(g2.toArray, false);
-    //val g2WeightVec = DoubleVector.of(g2Weight.toArray, false);
-
-    // Loop over observations.
-    for (m <- 0 until input.cols) {
-
-      singleGrad(delta, input, m, weightGradB, biasGradB);
-
-      val iceFactor = 1.0;
-
-      // Now weightGradB contains the gradient just for this observation.
-      // This is the average of a thing that is itself of order 1/m.
-      // N.B: The ICE term needs the count of the entire fitting sample (invObsCount), but the averaging done here needs
-      // the count of just this block (invBlockCount).
-      val iceAdjustment = iceFactor * invObsCount * IceTools.computeIce3Sum(gradB.data, g2,
-        g2Weight, false);
-
-      lossAdj += iceAdjustment;
-      val adjScale = 2.0 * iceAdjustment;
-
-      for (i <- 0 until gradB.length) {
-        // Again, averaging something where adjScale ~ 1/m.
-        val nextGrad = invBlockCount * gradB(i);
-        val gradAdj = nextGrad + (nextGrad * adjScale);
-        cumGrad(i) += gradAdj;
-      }
-    }
-
-    lossAdj *= invBlockCount;
-    return lossAdj
-  }
-
   override def singleGrad(delta: BDM[Double], input: BDM[Double], m: Int, weightGradB: BDM[Double], biasGradB: BDV[Double]): Unit = {
     for (i <- 0 until weightGradB.rows) {
       val delta_i = delta(i, m);
