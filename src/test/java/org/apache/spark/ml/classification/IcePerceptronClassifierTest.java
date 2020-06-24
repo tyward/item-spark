@@ -82,9 +82,9 @@ class IcePerceptronClassifierTest
         final Random rand = RandomTool.getRandom(PrngType.SECURE, PRNG_SEED);
 
         final int[][] testLayers = new int[][]{
-//                {INPUT_COLS.length, STATUS_COUNT},
-//                {INPUT_COLS.length, 5, STATUS_COUNT},
-//                {INPUT_COLS.length, 8, 5, STATUS_COUNT},
+                {INPUT_COLS.length, STATUS_COUNT},
+                {INPUT_COLS.length, 5, STATUS_COUNT},
+                {INPUT_COLS.length, 8, 5, STATUS_COUNT},
                 {INPUT_COLS.length, INPUT_COLS.length, 8, 5, STATUS_COUNT},
         };
         //testLayers[4] = new int[]{INPUT_COLS.length, 8, 5, STATUS_COUNT};
@@ -92,7 +92,7 @@ class IcePerceptronClassifierTest
         //testLayers[3] = new int[]{INPUT_COLS.length, 8, 5, 5, STATUS_COUNT};
 
         final int[] sampleSizes = new int[]{
-                //128, 256, 512, 1024, 2048,
+                128, 256, 512, 1024, 2048,
                 4096, 8 * 1024, 16 * 1024, 32 * 1024,
                 64 * 1024,
                 128 * 1024};
@@ -123,12 +123,12 @@ class IcePerceptronClassifierTest
 //                            printResults(mlpResult, output);
 //                        }
 
-                        {
-                            final ClassificationModelEvaluator.EvaluationResult mlpResult2 = generateMleResult(data,
-                                    prngSeed, testLayers[k], startingPoint.getModel().weights(),
-                                    SOLVER);
-                            printResults(mlpResult2, output);
-                        }
+//                        {
+//                            final ClassificationModelEvaluator.EvaluationResult mlpResult2 = generateMleResult(data,
+//                                    prngSeed, testLayers[k], startingPoint.getModel().weights(),
+//                                    SOLVER);
+//                            printResults(mlpResult2, output);
+//                        }
 
                         // ICE after here.
                         {
@@ -144,12 +144,12 @@ class IcePerceptronClassifierTest
 //                            printResults(iceResult, output);
 //                        }
 
-                        {
-                            final ClassificationModelEvaluator.EvaluationResult iceResult = generateIceResult(data,
-                                    prngSeed, testLayers[k], startingPoint.getModel().weights(),
-                                    SOLVER);
-                            printResults(iceResult, output);
-                        }
+//                        {
+//                            final ClassificationModelEvaluator.EvaluationResult iceResult = generateIceResult(data,
+//                                    prngSeed, testLayers[k], startingPoint.getModel().weights(),
+//                                    SOLVER);
+//                            printResults(iceResult, output);
+//                        }
                     }
                 }
             }
