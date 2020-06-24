@@ -233,7 +233,7 @@ private[ml] class IceFeedForwardModel private(
 
       // Now, tmpGradArray is fully filled, so just compute the final ICE gradient.
       val iceAdjustment = invObsCount * IceTools.computeIce3Sum(tmpGradArray, g2Vec,
-        g2Weights, false);
+        g2Weights, false, true);
 
       lossAdj += iceAdjustment;
       val adjScale = 2.0 * iceAdjustment;
