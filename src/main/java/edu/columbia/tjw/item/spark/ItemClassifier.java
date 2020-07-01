@@ -49,7 +49,6 @@ public class ItemClassifier
         implements Cloneable
 {
     private static final long serialVersionUID = 0x7cc313e747f68becL;
-    private static final String INTERCEPT_NAME = "ITEM_INTERCEPT";
 
     private final ItemClassifierSettings _settings;
     private final ItemParameters<SimpleStatus, SimpleRegressor, StandardCurveType> _startingParams;
@@ -95,7 +94,7 @@ public class ItemClassifier
         final String labelCol = this.getLabelCol();
 
         final ItemStatusGrid<SimpleStatus, SimpleRegressor> data = new SparkGridAdapter(data_, labelCol, featureCol,
-                this._settings.getRegressors(), this._settings.getFromStatus(), _settings.getIntercept());
+                this._settings.getRegressors(), this._settings.getFromStatus(), _settings.getRegressorFamily());
 
         return data;
     }
@@ -107,7 +106,7 @@ public class ItemClassifier
 
         final ItemFitter<SimpleStatus, SimpleRegressor, StandardCurveType> fitter = new ItemFitter<>(
                 _settings.getFactory(),
-                _settings.getIntercept(), _settings.getFromStatus(), data, _settings.getSettings());
+                _settings.getRegressorFamily(), _settings.getFromStatus(), data, _settings.getSettings());
 
         return fitter;
     }
@@ -124,12 +123,11 @@ public class ItemClassifier
             regNames[pointer++] = reg.name();
         }
 
-        final Dataset<?> withIntercept = data_.withColumn(INTERCEPT_NAME, org.apache.spark.sql.functions.lit(1.0));
         final VectorAssembler assembler = new VectorAssembler();
         assembler.setInputCols(regNames);
         assembler.setOutputCol(featuresColumn_);
 
-        final Dataset<Row> withFeatures = assembler.transform(withIntercept);
+        final Dataset<Row> withFeatures = assembler.transform(data_);
         return withFeatures;
     }
 
@@ -172,23 +170,23 @@ public class ItemClassifier
 
         final EnumFamily<SimpleStatus> statFamily = SimpleStatus.generateFamily(statList);
 
-        final List<String> regList = new ArrayList<>();
-        regList.add(INTERCEPT_NAME);
-        regList.addAll(featureList);
+//        final List<String> regList = new ArrayList<>();
+//        //regList.add(INTERCEPT_NAME);
+//        regList.addAll(featureList);
 
-        final Set<String> distinctSet = new HashSet<>(regList);
+        final Set<String> distinctSet = new HashSet<>(featureList);
 
-        if (distinctSet.size() != regList.size())
+        if (distinctSet.size() != featureList.size())
         {
-            throw new RuntimeException("Non distinct features: " + regList.size());
+            throw new RuntimeException("Non distinct features: " + featureList.size());
         }
         if (!distinctSet.containsAll(curveRegressors_))
         {
             throw new RuntimeException("All curve regressors must also be in the feature list.");
         }
 
-        final ItemClassifierSettings settings = new ItemClassifierSettings(settings_, INTERCEPT_NAME,
-                statFamily.getFromOrdinal(0), maxParamCount_, regList, curveRegressors_);
+        final ItemClassifierSettings settings = new ItemClassifierSettings(settings_,
+                statFamily.getFromOrdinal(0), maxParamCount_, featureList, curveRegressors_);
 
         return settings;
     }

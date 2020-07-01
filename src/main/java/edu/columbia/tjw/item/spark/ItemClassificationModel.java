@@ -25,7 +25,6 @@ import edu.columbia.tjw.item.base.SimpleRegressor;
 import edu.columbia.tjw.item.base.SimpleStatus;
 import edu.columbia.tjw.item.base.StandardCurveType;
 import edu.columbia.tjw.item.fit.FitResult;
-import edu.columbia.tjw.item.fit.GradientResult;
 import edu.columbia.tjw.item.util.random.RandomTool;
 import org.apache.spark.ml.classification.ProbabilisticClassificationModel;
 import org.apache.spark.ml.linalg.DenseVector;
