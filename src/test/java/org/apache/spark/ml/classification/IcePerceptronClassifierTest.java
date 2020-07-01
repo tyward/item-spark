@@ -2,8 +2,6 @@ package org.apache.spark.ml.classification;
 
 import edu.columbia.tjw.item.spark.ClassificationModelEvaluator;
 import edu.columbia.tjw.item.util.MathTools;
-import edu.columbia.tjw.item.util.random.PrngType;
-import edu.columbia.tjw.item.util.random.RandomTool;
 import org.apache.parquet.Strings;
 import org.apache.spark.SparkContext;
 import org.apache.spark.ml.ann.IcePerceptronClassificationModel;
@@ -19,12 +17,9 @@ import org.apache.spark.sql.types.DataTypes;
 import org.apache.spark.storage.StorageLevel;
 import org.junit.jupiter.api.Test;
 
-import java.io.FileOutputStream;
-import java.io.OutputStream;
 import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Random;
 
 class IcePerceptronClassifierTest
 {
@@ -46,125 +41,127 @@ class IcePerceptronClassifierTest
     private static final double TOLERANCE = 1.0e-8;
     private static final double STEP_SIZE = 0.03;
 
-//    @Test
-//    void testICE()
-//    {
-//        final SparkSession spark = generateSparkSession();
-//        final Dataset<Row> frame = generateData(spark);
-//        final ClassificationModelEvaluator.EvaluationResult result = generateIceResult(frame, PRNG_SEED,
-//                LAYERS, SAMPLE_SIZE, null, SOLVER);
-//
-//        PrintStream output = System.out;
-//        printHeader(output);
-//        printResults(result, output);
-//    }
-//
-//    @Test
-//    void testMLP()
-//    {
-//        final SparkSession spark = generateSparkSession();
-//        final Dataset<Row> frame = generateData(spark);
-//        final ClassificationModelEvaluator.EvaluationResult result = generateMleResult(frame, PRNG_SEED,
-//                LAYERS, SAMPLE_SIZE, null, SOLVER);
-//
-//        PrintStream output = System.out;
-//
-//        printHeader(output);
-//        printResults(result, output);
-//    }
-
     @Test
-    void testSweep() throws Exception
+    void testICE()
     {
         final SparkSession spark = generateSparkSession();
         final Dataset<Row> frame = generateData(spark);
+        final GeneratedData data = prepareData(frame, PRNG_SEED, SAMPLE_SIZE);
+        final ClassificationModelEvaluator.EvaluationResult result = generateIceResult(data, PRNG_SEED,
+                LAYERS, null, SOLVER);
 
-        final Random rand = RandomTool.getRandom(PrngType.SECURE, PRNG_SEED);
-
-        final int[][] testLayers = new int[][]{
-                {INPUT_COLS.length, STATUS_COUNT},
-                {INPUT_COLS.length, 5, STATUS_COUNT},
-                {INPUT_COLS.length, 8, 5, STATUS_COUNT},
-                {INPUT_COLS.length, INPUT_COLS.length, 8, 5, STATUS_COUNT},
-        };
-        //testLayers[4] = new int[]{INPUT_COLS.length, 8, 5, STATUS_COUNT};
-        //testLayers[5] = new int[]{INPUT_COLS.length, 8, 8, STATUS_COUNT};
-        //testLayers[3] = new int[]{INPUT_COLS.length, 8, 5, 5, STATUS_COUNT};
-
-        final int[] sampleSizes = new int[]{
-                128, 256, 512, 1024, 2048,
-                4096, 8 * 1024, 16 * 1024, 32 * 1024,
-                64 * 1024,
-                128 * 1024};
-
-        final int repCount = 10;
-
-        try (final OutputStream oStream = new FileOutputStream("/Users/tyler/Desktop/runResults.csv");
-             PrintStream output = new PrintStream(oStream))
-        {
-            printHeader(output);
-
-            for (int k = 0; k < testLayers.length; k++)
-            {
-                for (int w = 0; w < sampleSizes.length; w++)
-                {
-                    for (int i = 0; i < repCount; i++)
-                    {
-                        final long prngSeed = rand.nextLong();
-                        final GeneratedData data = prepareData(frame, prngSeed, sampleSizes[w]);
-
-                        final ClassificationModelEvaluator.EvaluationResult startingPoint = generateMleResult(data,
-                                prngSeed, testLayers[k], null, SOLVER);
-                        printResults(startingPoint, output);
-
-//                        {
-//                            final ClassificationModelEvaluator.EvaluationResult mlpResult = generateMleResult(data,
-//                                    prngSeed, testLayers[k], null, SOLVER);
-//                            printResults(mlpResult, output);
-//                        }
-
-//                        {
-//                            final ClassificationModelEvaluator.EvaluationResult mlpResult2 = generateMleResult(data,
-//                                    prngSeed, testLayers[k], startingPoint.getModel().weights(),
-//                                    SOLVER);
-//                            printResults(mlpResult2, output);
-//                        }
-
-                        // ICE after here.
-                        {
-                            final ClassificationModelEvaluator.EvaluationResult iceResult = generateIceResult(data,
-                                    prngSeed, testLayers[k], null, SOLVER);
-                            printResults(iceResult, output);
-                        }
-
-//                        {
-//                            final ClassificationModelEvaluator.EvaluationResult iceResult = generateIceResult(data,
-//                                    prngSeed, testLayers[k], startingPoint.getModel().weights(),
-//                                    SOLVER_GD);
-//                            printResults(iceResult, output);
-//                        }
-
-//                        {
-//                            final ClassificationModelEvaluator.EvaluationResult iceResult = generateIceResult(data,
-//                                    prngSeed, testLayers[k], startingPoint.getModel().weights(),
-//                                    SOLVER);
-//                            printResults(iceResult, output);
-//                        }
-                    }
-                }
-            }
-        }
-
-
-//        final ClassificationModelEvaluator.EvaluationResult result = generateMlpResult(frame, PRNG_SEED,
-//                LAYERS, SAMPLE_SIZE);
-//
-//        PrintStream output = System.out;
-//
-//        printHeader(output);
-//        printResults(result, output);
-
+        PrintStream output = System.out;
+        printHeader(output);
+        printResults(result, output);
     }
+
+    @Test
+    void testMLP()
+    {
+        final SparkSession spark = generateSparkSession();
+        final Dataset<Row> frame = generateData(spark);
+        final GeneratedData data = prepareData(frame, PRNG_SEED, SAMPLE_SIZE);
+        final ClassificationModelEvaluator.EvaluationResult result = generateMleResult(data, PRNG_SEED,
+                LAYERS, null, SOLVER);
+
+        PrintStream output = System.out;
+
+        printHeader(output);
+        printResults(result, output);
+    }
+
+//    @Test
+//    void testSweep() throws Exception
+//    {
+//        final SparkSession spark = generateSparkSession();
+//        final Dataset<Row> frame = generateData(spark);
+//
+//        final Random rand = RandomTool.getRandom(PrngType.SECURE, PRNG_SEED);
+//
+//        final int[][] testLayers = new int[][]{
+//                {INPUT_COLS.length, STATUS_COUNT},
+//                {INPUT_COLS.length, 5, STATUS_COUNT},
+//                {INPUT_COLS.length, 8, 5, STATUS_COUNT},
+//                {INPUT_COLS.length, INPUT_COLS.length, 8, 5, STATUS_COUNT},
+//        };
+//        //testLayers[4] = new int[]{INPUT_COLS.length, 8, 5, STATUS_COUNT};
+//        //testLayers[5] = new int[]{INPUT_COLS.length, 8, 8, STATUS_COUNT};
+//        //testLayers[3] = new int[]{INPUT_COLS.length, 8, 5, 5, STATUS_COUNT};
+//
+//        final int[] sampleSizes = new int[]{
+//                128, 256, 512, 1024, 2048,
+//                4096, 8 * 1024, 16 * 1024, 32 * 1024,
+//                64 * 1024,
+//                128 * 1024};
+//
+//        final int repCount = 10;
+//
+//        try (final OutputStream oStream = new FileOutputStream("/Users/tyler/Desktop/runResults.csv");
+//             PrintStream output = new PrintStream(oStream))
+//        {
+//            printHeader(output);
+//
+//            for (int k = 0; k < testLayers.length; k++)
+//            {
+//                for (int w = 0; w < sampleSizes.length; w++)
+//                {
+//                    for (int i = 0; i < repCount; i++)
+//                    {
+//                        final long prngSeed = rand.nextLong();
+//                        final GeneratedData data = prepareData(frame, prngSeed, sampleSizes[w]);
+//
+//                        final ClassificationModelEvaluator.EvaluationResult startingPoint = generateMleResult(data,
+//                                prngSeed, testLayers[k], null, SOLVER);
+//                        printResults(startingPoint, output);
+//
+////                        {
+////                            final ClassificationModelEvaluator.EvaluationResult mlpResult = generateMleResult(data,
+////                                    prngSeed, testLayers[k], null, SOLVER);
+////                            printResults(mlpResult, output);
+////                        }
+//
+////                        {
+////                            final ClassificationModelEvaluator.EvaluationResult mlpResult2 = generateMleResult(data,
+////                                    prngSeed, testLayers[k], startingPoint.getModel().weights(),
+////                                    SOLVER);
+////                            printResults(mlpResult2, output);
+////                        }
+//
+//                        // ICE after here.
+//                        {
+//                            final ClassificationModelEvaluator.EvaluationResult iceResult = generateIceResult(data,
+//                                    prngSeed, testLayers[k], null, SOLVER);
+//                            printResults(iceResult, output);
+//                        }
+//
+////                        {
+////                            final ClassificationModelEvaluator.EvaluationResult iceResult = generateIceResult(data,
+////                                    prngSeed, testLayers[k], startingPoint.getModel().weights(),
+////                                    SOLVER_GD);
+////                            printResults(iceResult, output);
+////                        }
+//
+////                        {
+////                            final ClassificationModelEvaluator.EvaluationResult iceResult = generateIceResult(data,
+////                                    prngSeed, testLayers[k], startingPoint.getModel().weights(),
+////                                    SOLVER);
+////                            printResults(iceResult, output);
+////                        }
+//                    }
+//                }
+//            }
+//        }
+//
+//
+////        final ClassificationModelEvaluator.EvaluationResult result = generateMlpResult(frame, PRNG_SEED,
+////                LAYERS, SAMPLE_SIZE);
+////
+////        PrintStream output = System.out;
+////
+////        printHeader(output);
+////        printResults(result, output);
+//
+//    }
 
 
     private ClassificationModelEvaluator.EvaluationResult generateMleResult(final GeneratedData data_,
