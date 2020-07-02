@@ -15,6 +15,7 @@ import org.apache.spark.sql.SparkSession;
 import org.apache.spark.sql.functions;
 import org.apache.spark.sql.types.DataTypes;
 import org.apache.spark.storage.StorageLevel;
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
 import java.io.PrintStream;
@@ -53,6 +54,9 @@ class IcePerceptronClassifierTest
         PrintStream output = System.out;
         printHeader(output);
         printResults(result, output);
+
+        Assertions.assertEquals(0.207848541708236, result.getFittingEntropy().getCrossEntropy());
+        Assertions.assertEquals(0.21023213376426986, result.getTestingEntropy().getCrossEntropy());
     }
 
     @Test
@@ -68,6 +72,9 @@ class IcePerceptronClassifierTest
 
         printHeader(output);
         printResults(result, output);
+
+        Assertions.assertEquals(0.1910299391715536, result.getFittingEntropy().getCrossEntropy());
+        Assertions.assertEquals(0.1995255248299325, result.getTestingEntropy().getCrossEntropy());
     }
 
 //    @Test
