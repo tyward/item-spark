@@ -3,10 +3,12 @@ package org.apache.spark.ml.ann
 import breeze.linalg.{DenseMatrix => BDM, DenseVector => BDV}
 import edu.columbia.tjw.item.algo.DoubleVector
 import edu.columbia.tjw.item.util.IceTools
+import org.apache.hadoop.fs.Path
 import org.apache.spark.annotation.Since
 import org.apache.spark.ml.classification.MultilayerPerceptronClassificationModel
 import org.apache.spark.ml.feature.OneHotEncoderModel
 import org.apache.spark.ml.linalg.{Vector, Vectors}
+import org.apache.spark.ml.util.{DefaultParamsReader, DefaultParamsWriter, MLReadable, MLReader, MLWriter}
 import org.apache.spark.mllib.linalg.BLAS.axpy
 import org.apache.spark.mllib.linalg.{Vector => OldVector, Vectors => OldVectors}
 import org.apache.spark.mllib.optimization.Gradient
@@ -195,6 +197,17 @@ private[ml] class IceFeedForwardModel private(
       offset += layers(i).weightSize
     }
 
+//    for (i <- 0 until layerModels.length) {
+//      val input = if (i == 0) data else outputs(i - 1)
+//      layerModels(i).grad(deltas(i), input,
+//        new BDV[Double](cumGradientArray, offset, 1, layers(i).weightSize))
+//      offset += layers(i).weightSize
+//    }
+//    return loss;
+
+
+
+
     //compute the weights...
     val g2Weights = IceTools.computeJWeight(DoubleVector.of(cumG2Array, false)).collapse();
 
@@ -224,11 +237,14 @@ private[ml] class IceFeedForwardModel private(
     val invBlockCount = 1.0 / data.cols;
     var lossAdj: Double = 0.0;
 
-    for (m <- 0 until data.cols) {
-      for (i <- 0 until layerModels.length) {
+    var m = 0;
+    while (m < data.cols) {
+      var i = 0;
+      while (i < layerModels.length) {
         val input = if (i == 0) data else outputs(i - 1)
 
         typedLayerModels(i).singleGrad(deltas(i), input, m, weightGradArray(i), biasGradArray(i))
+        i += 1;
       }
 
       // Now, tmpGradArray is fully filled, so just compute the final ICE gradient.
@@ -238,12 +254,16 @@ private[ml] class IceFeedForwardModel private(
       lossAdj += iceAdjustment;
       val adjScale = 2.0 * iceAdjustment;
 
-      for (i <- 0 until tmpGradArray.length) {
+      i = 0;
+      while (i < tmpGradArray.length) {
         // Again, averaging something where adjScale ~ 1/m.
         val nextGrad = invBlockCount * tmpGradArray(i);
         val gradAdj = nextGrad + (nextGrad * adjScale);
         cumGradientArray(i) += gradAdj;
+        i += 1;
       }
+
+      m += 1;
     }
 
     lossAdj *= invBlockCount;
@@ -499,3 +519,51 @@ class IcePerceptronClassificationModel private[ml](
 
 }
 
+@Since("2.0.0")
+object IcePerceptronClassificationModel
+  extends MLReadable[IcePerceptronClassificationModel] {
+
+  @Since("2.0.0")
+  override def read: MLReader[IcePerceptronClassificationModel] =
+    new IcePerceptronClassificationModelReader
+
+  @Since("2.0.0")
+  override def load(path: String): IcePerceptronClassificationModel = super.load(path)
+
+  /** [[MLWriter]] instance for [[MultilayerPerceptronClassificationModel]] */
+  private[IcePerceptronClassificationModel]
+  class IcePerceptronClassificationModelWriter(
+                                                       instance: IcePerceptronClassificationModel) extends MLWriter {
+
+    private case class Data(layers: Array[Int], weights: Vector)
+
+    override protected def saveImpl(path: String): Unit = {
+      // Save metadata and Params
+      DefaultParamsWriter.saveMetadata(instance, path, sc)
+      // Save model data: layers, weights
+      val data = Data(instance.layers, instance.weights)
+      val dataPath = new Path(path, "data").toString
+      sparkSession.createDataFrame(Seq(data)).repartition(1).write.parquet(dataPath)
+    }
+  }
+
+  private class IcePerceptronClassificationModelReader
+    extends MLReader[IcePerceptronClassificationModel] {
+
+    /** Checked against metadata when loading model */
+    private val className = classOf[IcePerceptronClassificationModel].getName
+
+    override def load(path: String): IcePerceptronClassificationModel = {
+      val metadata = DefaultParamsReader.loadMetadata(path, sc, className)
+
+      val dataPath = new Path(path, "data").toString
+      val data = sparkSession.read.parquet(dataPath).select("layers", "weights").head()
+      val layers = data.getAs[Seq[Int]](0).toArray
+      val weights = data.getAs[Vector](1)
+      val model = new IcePerceptronClassificationModel(metadata.uid, layers, weights, 4096)
+
+      metadata.getAndSetParams(model)
+      model
+    }
+  }
+}
