@@ -8,7 +8,7 @@ import org.apache.spark.annotation.Since
 import org.apache.spark.ml.classification.MultilayerPerceptronClassificationModel
 import org.apache.spark.ml.feature.OneHotEncoderModel
 import org.apache.spark.ml.linalg.{Vector, Vectors}
-import org.apache.spark.ml.util.{DefaultParamsReader, DefaultParamsWriter, MLReadable, MLReader, MLWriter}
+import org.apache.spark.ml.util._
 import org.apache.spark.mllib.linalg.BLAS.axpy
 import org.apache.spark.mllib.linalg.{Vector => OldVector, Vectors => OldVectors}
 import org.apache.spark.mllib.optimization.Gradient
@@ -82,7 +82,7 @@ private[ann] trait GeneralIceLayerModel extends LayerModel {
  */
 private[ml] class IceFeedForwardModel private(
                                                val weights: Vector,
-                                               val topology: IceFeedForwardTopology, val sampleCount: Long) extends TopologyModel {
+                                               val topology: IceFeedForwardTopology, val sampleCount: Long, iceMult: Double) extends TopologyModel {
   val typedLayers: Array[GeneralIceLayer] = topology.layers
   val typedLayerModels = new Array[GeneralIceLayerModel](typedLayers.length)
 
@@ -197,15 +197,13 @@ private[ml] class IceFeedForwardModel private(
       offset += layers(i).weightSize
     }
 
-//    for (i <- 0 until layerModels.length) {
-//      val input = if (i == 0) data else outputs(i - 1)
-//      layerModels(i).grad(deltas(i), input,
-//        new BDV[Double](cumGradientArray, offset, 1, layers(i).weightSize))
-//      offset += layers(i).weightSize
-//    }
-//    return loss;
-
-
+    //    for (i <- 0 until layerModels.length) {
+    //      val input = if (i == 0) data else outputs(i - 1)
+    //      layerModels(i).grad(deltas(i), input,
+    //        new BDV[Double](cumGradientArray, offset, 1, layers(i).weightSize))
+    //      offset += layers(i).weightSize
+    //    }
+    //    return loss;
 
 
     //compute the weights...
@@ -251,8 +249,8 @@ private[ml] class IceFeedForwardModel private(
       val iceAdjustment = invObsCount * IceTools.computeIce3Sum(tmpGradArray, g2Vec,
         g2Weights, false, true);
 
-      lossAdj += iceAdjustment;
-      val adjScale = 2.0 * iceAdjustment;
+      lossAdj += (iceMult * iceAdjustment);
+      val adjScale = 2.0 * iceMult * iceAdjustment;
 
       i = 0;
       while (i < tmpGradArray.length) {
@@ -301,11 +299,11 @@ private[ann] object IceFeedForwardModel {
    * @param weights  weights
    * @return model
    */
-  def apply(topology: IceFeedForwardTopology, weights: Vector, sampleSize: Long): IceFeedForwardModel = {
+  def apply(topology: IceFeedForwardTopology, weights: Vector, sampleSize: Long, iceMult: Double): IceFeedForwardModel = {
     val expectedWeightSize = topology.layers.map(_.weightSize).sum
     require(weights.size == expectedWeightSize,
       s"Expected weight vector of size ${expectedWeightSize} but got size ${weights.size}.")
-    new IceFeedForwardModel(weights, topology, sampleSize)
+    new IceFeedForwardModel(weights, topology, sampleSize, iceMult)
   }
 
   /**
@@ -315,7 +313,7 @@ private[ann] object IceFeedForwardModel {
    * @param seed     seed for generating the weights
    * @return model
    */
-  def apply(topology: IceFeedForwardTopology, seed: Long = 11L, sampleSize: Long): IceFeedForwardModel = {
+  def apply(topology: IceFeedForwardTopology, seed: Long = 11L, sampleSize: Long, iceMult: Double): IceFeedForwardModel = {
     val layers = topology.layers
     val layerModels = new Array[LayerModel](layers.length)
     val weights = BDV.zeros[Double](topology.layers.map(_.weightSize).sum)
@@ -326,7 +324,7 @@ private[ann] object IceFeedForwardModel {
         initModel(new BDV[Double](weights.data, offset, 1, layers(i).weightSize), random)
       offset += layers(i).weightSize
     }
-    new IceFeedForwardModel(Vectors.fromBreeze(weights), topology, sampleSize)
+    new IceFeedForwardModel(Vectors.fromBreeze(weights), topology, sampleSize, iceMult)
   }
 }
 
@@ -336,10 +334,10 @@ private[ann] object IceFeedForwardModel {
  *
  * @param layers Array of layers
  */
-private[ann] class IceFeedForwardTopology(val layers: Array[GeneralIceLayer], val sampleCount: Long) extends Topology {
-  override def model(weights: Vector): IceFeedForwardModel = IceFeedForwardModel(this, weights, sampleCount)
+private[ann] class IceFeedForwardTopology(val layers: Array[GeneralIceLayer], val sampleCount: Long, iceMult: Double) extends Topology {
+  override def model(weights: Vector): IceFeedForwardModel = IceFeedForwardModel(this, weights, sampleCount, iceMult)
 
-  override def model(seed: Long): IceFeedForwardModel = IceFeedForwardModel(this, seed, sampleCount)
+  override def model(seed: Long): IceFeedForwardModel = IceFeedForwardModel(this, seed, sampleCount, iceMult)
 }
 
 /**
@@ -353,8 +351,8 @@ private[ml] object IceFeedForwardTopology {
    * @param layers array of layers
    * @return feed forward topology
    */
-  def apply(layers: Array[GeneralIceLayer], sampleCount: Long): IceFeedForwardTopology = {
-    new IceFeedForwardTopology(layers, sampleCount)
+  def apply(layers: Array[GeneralIceLayer], sampleCount: Long, iceMult: Double): IceFeedForwardTopology = {
+    new IceFeedForwardTopology(layers, sampleCount, iceMult)
   }
 
 
@@ -365,7 +363,7 @@ private[ml] object IceFeedForwardTopology {
    * @return multilayer perceptron topology
    */
   def multiLayerPerceptron(
-                            layerSizes: Array[Int], sampleCount: Long): IceFeedForwardTopology = {
+                            layerSizes: Array[Int], sampleCount: Long, iceMult: Double): IceFeedForwardTopology = {
     val layers = new Array[GeneralIceLayer]((layerSizes.length - 1) * 2)
     for (i <- 0 until layerSizes.length - 1) {
       val affineLayer = new IceAffineLayer(layerSizes(i), layerSizes(i + 1))
@@ -377,7 +375,7 @@ private[ml] object IceFeedForwardTopology {
           new IceSigmoidLayer()
         }
     }
-    IceFeedForwardTopology(layers, sampleCount)
+    IceFeedForwardTopology(layers, sampleCount, iceMult)
   }
 }
 
@@ -437,7 +435,7 @@ class IcePerceptronClassificationModel private[ml](
                         dataset: Dataset[_],
                         weights: Vector,
                         cumGradientArray: Array[Double],
-                        cumG2Array: Array[Double]): Double = {
+                        cumG2Array: Array[Double], iceMult: Double): Double = {
     val myLayers: Array[Int] = layers
     val labels = myLayers.last
     val encodedLabelCol = "_encoded" + $(labelCol)
@@ -453,7 +451,7 @@ class IcePerceptronClassificationModel private[ml](
     val dataStacker = new DataStacker(blockSize, myLayers(0), myLayers.last)
 
     val iceModel: IceFeedForwardModel = IceFeedForwardTopology
-      .multiLayerPerceptron(layers, dataset.count())
+      .multiLayerPerceptron(layers, dataset.count(), iceMult)
       .model(weights)
 
     val gradient: ANNGradient2 = new ANNGradient2(iceModel.topology, dataStacker)
@@ -533,7 +531,7 @@ object IcePerceptronClassificationModel
   /** [[MLWriter]] instance for [[MultilayerPerceptronClassificationModel]] */
   private[IcePerceptronClassificationModel]
   class IcePerceptronClassificationModelWriter(
-                                                       instance: IcePerceptronClassificationModel) extends MLWriter {
+                                                instance: IcePerceptronClassificationModel) extends MLWriter {
 
     private case class Data(layers: Array[Int], weights: Vector)
 
@@ -566,4 +564,5 @@ object IcePerceptronClassificationModel
       model
     }
   }
+
 }

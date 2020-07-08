@@ -24,6 +24,12 @@ class IcePerceptronClassifier @Since("1.5.0")(
     MultilayerPerceptronClassificationModel]
     with MultilayerPerceptronParams with DefaultParamsWritable {
 
+  final val iceScale: DoubleParam = new DoubleParam(this,
+    "iceScale", "Ice effect scale, in [0, 1] where 0 is MLE and 1.0 is full ICE.",
+    ParamValidators.inRange(0.0, 1.0));
+
+  def setIceFactor(value: Double): this.type = set(iceScale, value)
+
   @Since("1.5.0")
   def this() = this(Identifiable.randomUID("mlpc"))
 
@@ -115,6 +121,8 @@ class IcePerceptronClassifier @Since("1.5.0")(
     instr.logParams(this, labelCol, featuresCol, predictionCol, layers, maxIter, tol,
       blockSize, solver, stepSize, seed)
 
+    val iceMult = this.get(iceScale).getOrElse(1.0);
+
     val myLayers = $(layers)
     val labels = myLayers.last
     instr.logNumClasses(labels)
@@ -133,7 +141,7 @@ class IcePerceptronClassifier @Since("1.5.0")(
       case Row(features: Vector, encodedLabel: Vector) => (features, encodedLabel)
     }
 
-    val topology = IceFeedForwardTopology.multiLayerPerceptron(myLayers, dataset.count())
+    val topology = IceFeedForwardTopology.multiLayerPerceptron(myLayers, dataset.count(), iceMult)
     val trainer = new FeedForwardTrainer(topology, myLayers(0), myLayers.last)
     if (isDefined(initialWeights)) {
       trainer.setWeights($(initialWeights))
