@@ -30,12 +30,22 @@ public class TestUtil
         final SparkSession spark = SparkSession.builder()
                 .master("local")
                 .appName("Tree Session")
+                .config("spark.executor.instances", 4)
+                .config("spark.executor.cores", 8)
                 .getOrCreate();
 
         SparkContext context = spark.sparkContext();
 
         spark.udf().register("toArrayLambda", (x) -> (((DenseVector) x).toArray()),
                 DataTypes.createArrayType(DataTypes.DoubleType));
+
+        spark.udf().register("extractIndex",
+                (Object x, Object index) ->
+                {
+                    int indexInt = ((Number) index).intValue();
+                    return ((DenseVector) x).apply(indexInt);
+                },
+                DataTypes.DoubleType);
 
         return spark;
     }
