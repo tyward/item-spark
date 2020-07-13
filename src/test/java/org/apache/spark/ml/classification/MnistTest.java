@@ -86,7 +86,7 @@ class MnistTest
         for (int i = 0; i < 100; i++)
         {
             final File evalFile =
-                    new File(mlpDir, "mlp_800_eval_" + i);
+                    new File(mlpDir, "mlp_800b_eval_" + i);
 
             if (evalFile.exists())
             {
@@ -95,7 +95,7 @@ class MnistTest
             }
 
             final File modelFile =
-                    new File(mlpDir, "mlp_800_" + i);
+                    new File(mlpDir, "mlp_800b_" + i);
 
             if (!modelFile.exists())
             {
@@ -119,7 +119,7 @@ class MnistTest
         for (int i = 0; i < 100; i++)
         {
             final File evalFile =
-                    new File(iceDir, "ice_800_eval_" + i);
+                    new File(iceDir, "ice_800b_eval_" + i);
 
             if (evalFile.exists())
             {
@@ -128,7 +128,7 @@ class MnistTest
             }
 
             final File modelFile =
-                    new File(iceDir, "ice_800_" + i);
+                    new File(iceDir, "ice_800b_" + i);
 
             if (!modelFile.exists())
             {
@@ -297,7 +297,7 @@ class MnistTest
         public void print()
         {
             System.out.println("Label: " + label);
-            System.out.println("Layers: " + layerString);
+            System.out.println("Layers: " + layerString.replace(",", "|"));
             System.out.println("Param Count: " + _paramCount);
             System.out.println("Confusion matrix:");
             System.out.println(confusionMatrix);
