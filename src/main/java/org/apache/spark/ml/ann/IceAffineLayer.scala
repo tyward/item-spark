@@ -58,14 +58,19 @@ private[ann] class IceAffineLayerModel private[ann](
   }
 
   override def singleGrad(delta: BDM[Double], input: BDM[Double], m: Int, weightGradB: BDM[Double], biasGradB: BDV[Double]): Unit = {
-    for (i <- 0 until weightGradB.rows) {
+    var i = 0;
+    while (i < weightGradB.rows) {
       val delta_i = delta(i, m);
       biasGradB(i) = delta_i;
 
-      for (k <- 0 until weightGradB.cols) {
+      var k = 0;
+      while (k < weightGradB.cols) {
         val a_k = input(k, m)
         weightGradB(i, k) = delta_i * a_k;
+        k += 1;
       }
+
+      i += 1;
     }
   }
 
@@ -93,9 +98,11 @@ private[ann] class IceAffineLayerModel private[ann](
     }
 
     // Loop over
-    for (m <- 0 until gamma.cols) {
+    var m = 0;
+    while (m < gamma.cols) {
 
-      for (i <- 0 until cumG2ofWeights.rows) {
+      var i = 0;
+      while (i < cumG2ofWeights.rows) {
         // Compute scale factor.
         val gamma_i = gamma(i, m);
         val prevOutput_i = output(i, m);
@@ -107,19 +114,27 @@ private[ann] class IceAffineLayerModel private[ann](
         val scale = (gamma_i * fprime_i * fprime_i) + (delta_i * fprime2_i)
         cumG2ofBias(i) += scale;
 
-        for (k <- 0 until cumG2ofWeights.cols) {
+        var k = 0;
+        while (k < cumG2ofWeights.cols) {
           val a_k = input(k, m);
           val computedG2 = scale * a_k * a_k;
 
           cumG2ofWeights(i, k) += computedG2;
+          k += 1;
         }
+
+        i += 1;
       }
+
+      m += 1;
     }
 
     val invObsCount = 1.0 / gamma.cols;
 
-    for (i <- 0 until cumG2.length) {
+    var i = 0;
+    while (i < cumG2.length) {
       cumG2(i) = cumG2(i) * invObsCount;
+      i += 1;
     }
   }
 
@@ -138,9 +153,11 @@ private[ann] class IceAffineLayerModel private[ann](
     }
 
     // Loop over observations.
-    for (m <- 0 until gamma.cols) {
+    var m = 0;
+    while (m < gamma.cols) {
       // Loop over output indices.
-      for (i <- 0 until gamma.rows) {
+      var i = 0;
+      while (i < gamma.rows) {
         val gamma_i = gamma(i, m);
         val prevOutput_i = prevOutput(i, m);
 
@@ -164,13 +181,15 @@ private[ann] class IceAffineLayerModel private[ann](
           // N.B: There are significant cross terms in the loss layer (due to the mutual exclusivity of the outputs), so we should not ignore them.
           // On the plus side, these cross terms are easy and cheap to compute, so just do that here, computing W^T*J*W exactly.
 
-          for (k <- 0 until w.cols) {
+          var k = 0;
+          while (k < w.cols) {
             val w_k = w(i, k)
             prevGamma(k, m) += deltaTerm * w_k * w_k;
 
             var subSum = 0.0;
 
-            for (u <- 0 until gamma.rows) {
+            var u = 0;
+            while (u < gamma.rows) {
               val w_u = w(u, k);
               val output_u = prevOutput(u, m);
               var kron = 0.0;
@@ -181,12 +200,18 @@ private[ann] class IceAffineLayerModel private[ann](
 
               val elem = (kron - output_u) * prevOutput_i * w_u;
               subSum += elem;
+              u += 1;
             }
 
             prevGamma(k, m) += subSum * w_k;
+            k += 1;
           }
         }
+
+        i += 1;
       }
+
+      m += 1;
     }
   }
 

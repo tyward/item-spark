@@ -59,10 +59,15 @@ private[ann] class IceSigmoidLayerModel private[ann](val layer: IceSigmoidLayer)
     computePrevDelta(delta, output, prevDelta);
 
     // Copy gamma -> prevGamma
-    for (i <- 0 until gamma.rows) {
-      for (j <- 0 until gamma.cols) {
+    var i = 0;
+    while (i < gamma.rows) {
+      var j = 0;
+      while (j < gamma.cols) {
         prevGamma(i, j) = gamma(i, j)
+        j += 1;
       }
+
+      i += 1;
     }
   }
 

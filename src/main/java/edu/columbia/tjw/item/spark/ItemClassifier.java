@@ -142,11 +142,11 @@ public class ItemClassifier
 
     public static ItemClassifierSettings prepareSettings(final Dataset<?> data_, final String toStatusColumn_,
                                                          final List<String> featureList,
-                                                         final Set<String> curveRegressors_, final int maxParamCount_
-            , final ItemSettings settings_)
+                                                         final Set<String> curveRegressors_, final int maxParamCount_,
+                                                         final ItemSettings settings_)
     {
         final Iterator<?> iter = data_.select(toStatusColumn_).distinct().toLocalIterator();
-        final SortedSet<Integer> statSet = new TreeSet<>();
+        final SortedMap<Integer, Integer> statSet = new TreeMap<>();
 
         while (iter.hasNext())
         {
@@ -158,17 +158,44 @@ public class ItemClassifier
                 continue;
             }
 
-            statSet.add(((Number) nextObj).intValue());
+            final Integer statIndex = ((Number) nextObj).intValue();
+            statSet.putIfAbsent(statIndex, 0);
+            final Integer prevVal = statSet.get(statIndex);
+            statSet.put(statIndex, prevVal + 1);
         }
 
-        final List<String> statList = new ArrayList<>();
+        // Base status will be the most common to-status. This tends to make the resulting parameters more
+        // understandable.
+        int baseStatus = -1;
+        int baseCount = 0;
 
-        for (final Integer next : statSet)
+        for (final Map.Entry<Integer, Integer> entry : statSet.entrySet())
+        {
+            final int entryCount = entry.getValue();
+
+            if (entryCount > baseCount)
+            {
+                baseStatus = entry.getKey();
+                baseCount = entryCount;
+            }
+        }
+
+
+        final List<String> statList = new ArrayList<>();
+        int baseIndex = -1;
+
+        for (final Integer next : statSet.keySet())
         {
             statList.add(next.toString());
+
+            if (next.intValue() == baseStatus)
+            {
+                baseIndex = statList.size();
+            }
         }
 
         final EnumFamily<SimpleStatus> statFamily = SimpleStatus.generateFamily(statList);
+        final SimpleStatus baseStatusMember = statFamily.getFromOrdinal(baseIndex);
 
 //        final List<String> regList = new ArrayList<>();
 //        //regList.add(INTERCEPT_NAME);
@@ -186,7 +213,7 @@ public class ItemClassifier
         }
 
         final ItemClassifierSettings settings = new ItemClassifierSettings(settings_,
-                statFamily.getFromOrdinal(0), maxParamCount_, featureList, curveRegressors_);
+                baseStatusMember, maxParamCount_, featureList, curveRegressors_);
 
         return settings;
     }
