@@ -61,19 +61,9 @@ public class ItemClassificationModel extends ProbabilisticClassificationModel<Ve
 
         _offsetMap = new int[paramFields.size()];
 
-        //This is the intercept, always. 
-        //_offsetMap[0] = -1;
-
         for (int i = 1; i < paramFields.size(); i++)
         {
             final SimpleRegressor next = paramFields.get(i);
-
-//            if (next == getParams().getEntryRegressor(getParams().getInterceptIndex(), 0))
-//            {
-//                _offsetMap[i] = -1;
-//                continue;
-//            }
-
             final int index = _settings.getRegressors().indexOf(next);
 
             if (-1 == index)
