@@ -68,7 +68,7 @@ class MnistTest
 //        evaluateResults(results);
 //    }
 
-    @Test
+    //@Test
     void testStored() throws IOException
     {
         final SparkSession spark = TestUtil.generateSparkSession();
