@@ -55,7 +55,7 @@ public class SparkGridAdapter implements ItemStatusGrid<SimpleStatus, SimpleRegr
         _regFamily = regFamily_;
         _readers = new ItemRegressorReader[_regFamily.size()];
 
-        final Iterator<Row> rowForm = (Iterator<Row>) data_.toLocalIterator();
+        final Iterator<Row> rowForm = (Iterator<Row>) data_.select(featureColumn_, labelColumn_).toLocalIterator();
 
         final double[][] transposed = new double[regCount][rowCount];
         _toLabels = new int[rowCount];

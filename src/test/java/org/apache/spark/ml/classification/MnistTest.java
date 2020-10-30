@@ -19,6 +19,8 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 class MnistTest
 {
@@ -71,6 +73,16 @@ class MnistTest
     //@Test
     void testStored() throws IOException
     {
+        final Pattern idPattern = Pattern.compile("ice_([\\d]+)_([\\d]+)_([\\d]+)");
+
+//        Matcher match = idPattern.matcher("ice_0_800_0");
+//        boolean isMatch = match.matches();
+//
+//
+//        final int a = Integer.parseInt(match.group(1));
+//        final int b = Integer.parseInt(match.group(3));
+
+
         final SparkSession spark = TestUtil.generateSparkSession();
         final GeneratedData generated = generateData(spark);
 
@@ -116,10 +128,18 @@ class MnistTest
         final File iceDir = new File("/Users/tyler/sync-workspace/math/research/mlpIce/mnist/models/ice");
         iceDir.mkdirs();
 
-        for (int i = 0; i < 100; i++)
+        final File[] fileList = iceDir.listFiles();
+        Arrays.sort(fileList);
+
+        for (final File next : fileList)
+        //for (int i = 0; i < 100; i++)
         {
-            final File evalFile =
-                    new File(iceDir, "ice_800b_eval_" + i);
+            if (!next.isDirectory())
+            {
+                continue;
+            }
+
+            final File evalFile = new File(iceDir, next.getName() + ".eval");
 
             if (evalFile.exists())
             {
@@ -127,20 +147,24 @@ class MnistTest
                 continue;
             }
 
-            final File modelFile =
-                    new File(iceDir, "ice_800b_" + i);
+            final String nextName = next.getName();
+            final Matcher matcher = idPattern.matcher(nextName);
 
-            if (!modelFile.exists())
+            if (!matcher.matches())
             {
-                break;
+                throw new IllegalStateException("Filename problems.");
             }
 
+            final int j = Integer.parseInt(matcher.group(1));
+            final int i = Integer.parseInt(matcher.group(3));
+
             final IcePerceptronClassificationModel mlpModel =
-                    IcePerceptronClassificationModel.load(modelFile.getAbsolutePath());
+                    IcePerceptronClassificationModel.load(next.getAbsolutePath());
 
             final Dataset<Row> results = mlpModel.transform(generated.getTesting());
 
-            final MNistEvaluation eval = evaluateResults("ICE[" + i + "]", layers, mlpModel.weights().size(), results);
+            final MNistEvaluation eval = evaluateResults("ICE[" + i + "|" + j + "]", layers, mlpModel.weights().size(),
+                    results);
             eval.save(evalFile);
             evaluations.add(eval);
         }
@@ -241,7 +265,7 @@ class MnistTest
         public MNistEvaluation(final String label_, final int[] layers, final int paramCount, final Dataset<Row> result)
         {
             label = label_;
-            layerString = Arrays.toString(layers);
+            layerString = Arrays.toString(layers).replace(',', '|');
             _paramCount = paramCount;
 
             Dataset<Row> mlp_pred =
