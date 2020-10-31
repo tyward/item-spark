@@ -41,7 +41,7 @@ import java.util.zip.GZIPOutputStream;
  */
 public class ItemClassificationModel extends ProbabilisticClassificationModel<Vector, ItemClassificationModel>
 {
-    private static final long serialVersionUID = 0x8c7eb061e0d2988aL;
+    private static final long serialVersionUID = 0x2bb4508735311c26L;
 
     private final int[] _offsetMap;
     private final ItemClassifierSettings _settings;
@@ -61,19 +61,9 @@ public class ItemClassificationModel extends ProbabilisticClassificationModel<Ve
 
         _offsetMap = new int[paramFields.size()];
 
-        //This is the intercept, always. 
-        _offsetMap[0] = -1;
-
         for (int i = 1; i < paramFields.size(); i++)
         {
             final SimpleRegressor next = paramFields.get(i);
-
-            if (next == getParams().getEntryRegressor(getParams().getInterceptIndex(), 0))
-            {
-                _offsetMap[i] = -1;
-                continue;
-            }
-
             final int index = _settings.getRegressors().indexOf(next);
 
             if (-1 == index)
@@ -111,15 +101,7 @@ public class ItemClassificationModel extends ProbabilisticClassificationModel<Ve
         for (int i = 0; i < getParams().getUniqueRegressors().size(); i++)
         {
             final int fieldIndex = _offsetMap[i];
-
-            if (-1 == fieldIndex)
-            {
-                _rawRegressors[i] = 1.0;
-            }
-            else
-            {
-                _rawRegressors[i] = allRegressors_.apply(fieldIndex);
-            }
+            _rawRegressors[i] = allRegressors_.apply(fieldIndex);
         }
 
         final double[] probabilities = new double[getParams().getStatus().getReachableCount()];
