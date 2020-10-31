@@ -41,7 +41,7 @@ import java.util.zip.GZIPOutputStream;
  */
 public class ItemClassificationModel extends ProbabilisticClassificationModel<Vector, ItemClassificationModel>
 {
-    private static final long serialVersionUID = 0x8c7eb061e0d2988aL;
+    private static final long serialVersionUID = 0x2bb4508735311c26L;
 
     private final int[] _offsetMap;
     private final ItemClassifierSettings _settings;
