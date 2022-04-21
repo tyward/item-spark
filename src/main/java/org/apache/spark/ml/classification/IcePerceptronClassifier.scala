@@ -1,7 +1,7 @@
 package org.apache.spark.ml.classification
 
 import org.apache.spark.annotation.Since
-import org.apache.spark.ml.ann.{FeedForwardTrainer, IceFeedForwardTopology, IcePerceptronClassificationModel}
+import org.apache.spark.ml.ann.{AnnUtil, FeedForwardTrainer, IceFeedForwardTopology, IcePerceptronClassificationModel, TopologyModel}
 import org.apache.spark.ml.feature.OneHotEncoderModel
 import org.apache.spark.ml.linalg.Vector
 import org.apache.spark.ml.param._
@@ -162,8 +162,9 @@ class IcePerceptronClassifier @Since("1.5.0")(
         s"The solver $solver is not supported by MultilayerPerceptronClassifier.")
     }
     trainer.setStackSize($(blockSize))
-    val mlpModel = trainer.train(data)
-    return new IcePerceptronClassificationModel(uid, myLayers, mlpModel.weights, $(blockSize))
+
+    val weights : Vector = AnnUtil.trainAndExtractWeights(trainer, data)
+    return new IcePerceptronClassificationModel(uid, myLayers, weights, $(blockSize))
   }
 }
 

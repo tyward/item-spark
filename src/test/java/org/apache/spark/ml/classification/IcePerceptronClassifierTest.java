@@ -40,8 +40,8 @@ class IcePerceptronClassifierTest
         TestUtil.printHeader(output);
         TestUtil.printResults(result, output);
 
-        Assertions.assertEquals(0.20434698112640826, result.getFittingEntropy().getCrossEntropy());
-        Assertions.assertEquals(0.19998374241370476, result.getTestingEntropy().getCrossEntropy());
+        Assertions.assertEquals(0.20434697438631094, result.getFittingEntropy().getCrossEntropy());
+        Assertions.assertEquals(0.19998373307144743, result.getTestingEntropy().getCrossEntropy());
     }
 
     @Test
@@ -58,8 +58,8 @@ class IcePerceptronClassifierTest
         TestUtil.printHeader(output);
         TestUtil.printResults(result, output);
 
-        Assertions.assertEquals(0.20244981293461192, result.getFittingEntropy().getCrossEntropy());
-        Assertions.assertEquals(0.1995552663736669, result.getTestingEntropy().getCrossEntropy());
+        Assertions.assertEquals(0.2024497811691205, result.getFittingEntropy().getCrossEntropy());
+        Assertions.assertEquals(0.19956174702799212, result.getTestingEntropy().getCrossEntropy());
     }
 
     private ClassificationModelEvaluator.EvaluationResult generateMleResult(final TestUtil.GeneratedData data_,
