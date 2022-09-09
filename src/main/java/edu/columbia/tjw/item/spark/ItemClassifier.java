@@ -36,10 +36,12 @@ import org.apache.spark.ml.classification.ProbabilisticClassifier;
 import org.apache.spark.ml.feature.VectorAssembler;
 import org.apache.spark.ml.linalg.Vector;
 import org.apache.spark.ml.param.ParamMap;
+import org.apache.spark.ml.util.MLReader;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
 
 import java.util.*;
+import java.io.Serializable;
 
 /**
  * @author tyler
@@ -111,9 +113,8 @@ public class ItemClassifier
         return fitter;
     }
 
-    public static Dataset<Row> prepareData(final Dataset<?> data_, final ItemClassifierSettings settings_,
-                                           final String featuresColumn_)
-    {
+    public static VectorAssembler prepareAssembler(final ItemClassifierSettings settings_,
+                                                   final String featuresColumn_) {
         final List<SimpleRegressor> regs = settings_.getRegressors();
         final String[] regNames = new String[regs.size()];
         int pointer = 0;
@@ -126,7 +127,14 @@ public class ItemClassifier
         final VectorAssembler assembler = new VectorAssembler();
         assembler.setInputCols(regNames);
         assembler.setOutputCol(featuresColumn_);
+        return assembler;
+    }
 
+
+    public static Dataset<Row> prepareData(final Dataset<?> data_, final ItemClassifierSettings settings_,
+                                           final String featuresColumn_)
+    {
+        final VectorAssembler assembler = prepareAssembler(settings_, featuresColumn_);
         final Dataset<Row> withFeatures = assembler.transform(data_);
         return withFeatures;
     }

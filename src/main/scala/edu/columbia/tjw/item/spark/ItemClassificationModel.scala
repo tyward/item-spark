@@ -4,39 +4,44 @@ import edu.columbia.tjw.item.base.{SimpleRegressor, SimpleStatus, StandardCurveT
 import edu.columbia.tjw.item.fit.FitResult
 import edu.columbia.tjw.item.util.random.RandomTool
 import edu.columbia.tjw.item.{ItemModel, ItemParameters}
-import org.apache.spark.ml.classification.ProbabilisticClassificationModel
+import org.apache.spark.ml.classification.{LogisticRegressionModel, ProbabilisticClassificationModel}
 import org.apache.spark.ml.linalg.{DenseVector, Vector}
 import org.apache.spark.ml.param.ParamMap
+import org.apache.spark.ml.util.{MLReadable, MLReader, MLWriter}
 
 import java.io._
 import java.util
-import java.util.zip.{GZIPInputStream, GZIPOutputStream}
 
 
 @SerialVersionUID(0x2bb4508735311c26L)
-object ItemClassificationModel {
+object ItemClassificationModel extends MLReadable[ItemClassificationModel] {
+  def read: MLReader[ItemClassificationModel] = new ModelReaderSerializable[ItemClassificationModel]();
+
   @throws[IOException]
-  def load(filename_ : String):
+  override def load(filename_ : String):
   ItemClassificationModel = {
-    try {
-      val fIn: FileInputStream = new FileInputStream(filename_)
-      val zipIn: GZIPInputStream = new GZIPInputStream(fIn)
-      val oIn: ObjectInputStream = new ObjectInputStream(zipIn)
-      try return oIn.readObject.asInstanceOf[ItemClassificationModel]
-      catch {
-        case e: ClassNotFoundException =>
-          throw new IOException("Unable to load unknown class.", e)
-      } finally {
-        if (fIn != null) fIn.close()
-        if (zipIn != null) zipIn.close()
-        if (oIn != null) oIn.close()
-      }
-    }
+    var model = super.load(filename_)
+
+    // Some properties don't restore correctly, rebuild this model to correct them.
+    var output = new ItemClassificationModel(model._fitResult, model._settings)
+    return output
   }
 }
 
 @SerialVersionUID(0x2bb4508735311c26L)
-class ItemClassificationModel(val _fitResult: FitResult[SimpleStatus, SimpleRegressor, StandardCurveType], val _settings: ItemClassifierSettings) extends ProbabilisticClassificationModel[Vector, ItemClassificationModel] {
+class ItemClassificationModel(override val uid: String, val _fitResult: FitResult[SimpleStatus, SimpleRegressor, StandardCurveType],
+                              val _settings: ItemClassifierSettings)
+  extends ProbabilisticClassificationModel[Vector, ItemClassificationModel]
+    with org.apache.spark.ml.util.MLWritable
+    with java.io.Serializable {
+
+  def this(fitResult: FitResult[SimpleStatus, SimpleRegressor, StandardCurveType],
+    settings: ItemClassifierSettings) {
+    this(RandomTool.randomString(16), fitResult, settings);
+  }
+
+  def write: MLWriter = new ModelWriterSerializable[ItemClassificationModel](this);
+
   val paramFields: util.List[SimpleRegressor] = getParams.getUniqueRegressors
   _offsetMap = new Array[Int](paramFields.size)
   for (i <- 1 until paramFields.size) {
@@ -46,7 +51,6 @@ class ItemClassificationModel(val _fitResult: FitResult[SimpleStatus, SimpleRegr
     _offsetMap(i) = index
   }
   final private var _offsetMap: Array[Int] = null
-  private var _uid: String = null
   private var _model: ItemModel[SimpleStatus, SimpleRegressor, StandardCurveType] = null
   private var _rawRegressors: Array[Double] = null
 
@@ -73,11 +77,6 @@ class ItemClassificationModel(val _fitResult: FitResult[SimpleStatus, SimpleRegr
 
   override def copy(arg0: ParamMap): ItemClassificationModel = defaultCopy(arg0)
 
-  override val uid : String = { //Hideous hack because this is being called in the superclass constructor.
-    if (null == _uid) {_uid = RandomTool.randomString(64)}
-    _uid
-  }
-
   def getFitResult: FitResult[SimpleStatus, SimpleRegressor, StandardCurveType] = _fitResult
 
   final def getParams: ItemParameters[SimpleStatus, SimpleRegressor, StandardCurveType] = getFitResult.getParams
@@ -88,21 +87,5 @@ class ItemClassificationModel(val _fitResult: FitResult[SimpleStatus, SimpleRegr
       _rawRegressors = new Array[Double](getParams.getUniqueRegressors.size)
     }
     _model
-  }
-
-  @throws[IOException]
-  def save(fileName_ : String):
-  Unit = {
-    try {
-      val fout: FileOutputStream = new FileOutputStream(fileName_)
-      val zipOut: GZIPOutputStream = new GZIPOutputStream(fout)
-      val oOut: ObjectOutputStream = new ObjectOutputStream(zipOut)
-      try oOut.writeObject(this)
-      finally {
-        if (fout != null) fout.close()
-        if (zipOut != null) zipOut.close()
-        if (oOut != null) oOut.close()
-      }
-    }
   }
 }
