@@ -4,7 +4,7 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>edu.columbia.tjw</groupId>
     <artifactId>item-spark</artifactId>
-    <version>1.5.0-spark3</version>
+    <version>1.5.1-spark3</version>
     <packaging>jar</packaging>
     <name>ITEM Spark Adapter</name>
     <description>A statistical model for automatic fitting against large data sets.</description>
@@ -36,6 +36,28 @@
     <build>
         <plugins>
             <plugin>
+                <groupId>net.alchim31.maven</groupId>
+                <artifactId>scala-maven-plugin</artifactId>
+                <version>4.7.1</version>
+                <executions>
+                    <execution>
+                        <id>scala-compile-first</id>
+                        <phase>process-resources</phase>
+                        <goals>
+                            <goal>add-source</goal>
+                            <goal>compile</goal>
+                        </goals>
+                    </execution>
+                    <execution>
+                        <id>scala-test-compile</id>
+                        <phase>process-test-resources</phase>
+                        <goals>
+                            <goal>testCompile</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-source-plugin</artifactId>
                 <version>3.2.1</version>
@@ -48,31 +70,31 @@
                     </execution>
                 </executions>
             </plugin>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-javadoc-plugin</artifactId>
-                <version>3.2.0</version>
-                <executions>
-                    <execution>
-                        <id>attach-javadocs</id>
-                        <goals>
-                            <goal>jar</goal>
-                        </goals>
-                    </execution>
-                </executions>
-            </plugin>
+<!--            <plugin>-->
+<!--                <groupId>org.apache.maven.plugins</groupId>-->
+<!--                <artifactId>maven-javadoc-plugin</artifactId>-->
+<!--                <version>3.2.0</version>-->
+<!--                <executions>-->
+<!--                    <execution>-->
+<!--                        <id>attach-javadocs</id>-->
+<!--                        <goals>-->
+<!--                            <goal>jar</goal>-->
+<!--                        </goals>-->
+<!--                    </execution>-->
+<!--                </executions>-->
+<!--            </plugin>-->
         </plugins>
     </build>
     <dependencies>
         <dependency>
             <groupId>org.apache.spark</groupId>
             <artifactId>spark-mllib_2.12</artifactId>
-            <version>3.1.1</version>
+            <version>3.2.1</version>
         </dependency>
         <dependency>
             <groupId>edu.columbia.tjw</groupId>
             <artifactId>item</artifactId>
-            <version>1.5.0</version>
+            <version>1.5.1</version>
         </dependency>
         <dependency>
             <groupId>org.junit.jupiter</groupId>
@@ -83,13 +105,18 @@
         <dependency>
             <groupId>org.apache.spark</groupId>
             <artifactId>spark-sql_2.12</artifactId>
-            <version>3.1.1</version>
+            <version>3.2.1</version>
         </dependency>
         <dependency>
             <groupId>org.apache.spark</groupId>
             <artifactId>spark-core_2.12</artifactId>
-            <version>3.1.1</version>
+            <version>3.2.1</version>
         </dependency>
+<!--        <dependency>-->
+<!--            <groupId>org.scalanlp</groupId>-->
+<!--            <artifactId>breeze_2.12</artifactId>-->
+<!--            <version>1.0</version>-->
+<!--        </dependency>-->
 
     </dependencies>
 </project>

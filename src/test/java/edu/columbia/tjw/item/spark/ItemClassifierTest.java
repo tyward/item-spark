@@ -67,8 +67,8 @@ public class ItemClassifierTest
 
         Evaluation fitEvalItem = evaluate(spark, testing, itemModel);
 
-        Assertions.assertEquals(0.21286579495822072, fitEvalItem.getCrossEntropy());
-        Assertions.assertEquals(0.23560129985798559, fitEvalItem.getDistEntropy());
+        Assertions.assertEquals(0.21147478070722345, fitEvalItem.getCrossEntropy());
+        Assertions.assertEquals(0.19139604117045084, fitEvalItem.getDistEntropy());
         Assertions.assertEquals(1471696, fitEvalItem.getRowCount());
     }
 

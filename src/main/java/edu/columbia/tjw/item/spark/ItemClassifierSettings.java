@@ -55,11 +55,39 @@ public final class ItemClassifierSettings implements Serializable
 
     private final EnumFamily<SimpleRegressor> _regFamily;
 
+    /**
+     * Convenience constructor to allow easy changes to maxParamCount_
+     *
+     * @param base_
+     * @param maxParamCount_
+     */
+    public ItemClassifierSettings(final ItemClassifierSettings base_, final int maxParamCount_) {
+        _settings = base_._settings;
+        _fromStatus = base_._fromStatus;
+        _intercept = null;
+        _factory = base_._factory;
+        _maxParamCount = maxParamCount_;
+        _regressors = base_._regressors;
+        _curveRegressors = base_._curveRegressors;
+        _nonCurveRegressors = base_._nonCurveRegressors;
+
+        // N.B: Added to allow loading of previous version of ItemClassifierSettings
+        if (base_._regFamily == null)
+        {
+            _regFamily = base_._intercept.getFamily();
+        }
+        else
+        {
+            _regFamily = base_._regFamily;
+        }
+    }
+
+
     public ItemClassifierSettings(final ItemClassifierSettings base_, final ItemSettings settings_)
     {
         _settings = settings_;
         _fromStatus = base_._fromStatus;
-        _intercept = base_._intercept;
+        _intercept = null;
         _factory = base_._factory;
         _maxParamCount = base_._maxParamCount;
         _regressors = base_._regressors;
