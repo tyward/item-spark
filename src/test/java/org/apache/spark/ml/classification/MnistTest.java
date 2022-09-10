@@ -3,6 +3,7 @@ package org.apache.spark.ml.classification;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.function.Function;
 import org.apache.spark.ml.ann.IcePerceptronClassificationModel;
+import org.apache.spark.ml.classification.IcePerceptronClassifier;
 import org.apache.spark.ml.classification.TestUtil.GeneratedData;
 import org.apache.spark.ml.feature.VectorAssembler;
 import org.apache.spark.mllib.evaluation.MulticlassMetrics;

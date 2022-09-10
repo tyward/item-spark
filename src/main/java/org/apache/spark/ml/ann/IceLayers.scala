@@ -424,19 +424,19 @@ private[ann] class ANNGradient2(topology: IceFeedForwardTopology, dataStacker: D
 
 class IcePerceptronClassificationModel private[ml](
                                                     @Since("1.5.0") override val uid: String,
-                                                    @Since("1.5.0") override val layers: Array[Int],
-                                                    @Since("2.0.0") override val weights: Vector, val blockSize: Int)
-  extends MultilayerPerceptronClassificationModel(uid, layers, weights) {
+                                                    @Since("1.5.0") val layers2: Array[Int],
+                                                    @Since("2.0.0") override val weights: Vector, val blockSize2: Int)
+  extends MultilayerPerceptronClassificationModel(uid, weights) {
 
   @Since("1.6.0")
-  override val numFeatures: Int = layers.head
+  override lazy val numFeatures: Int = layers2.head
 
   def computeGradients(
                         dataset: Dataset[_],
                         weights: Vector,
                         cumGradientArray: Array[Double],
                         cumG2Array: Array[Double], iceMult: Double): Double = {
-    val myLayers: Array[Int] = layers
+    val myLayers: Array[Int] = layers2
     val labels = myLayers.last
     val encodedLabelCol = "_encoded" + $(labelCol)
     val encodeModel = new OneHotEncoderModel(uid, Array(labels))
@@ -448,10 +448,10 @@ class IcePerceptronClassificationModel private[ml](
       case Row(features: Vector, encodedLabel: Vector) => (features, encodedLabel)
     }
 
-    val dataStacker = new DataStacker(blockSize, myLayers(0), myLayers.last)
+    val dataStacker = new DataStacker(blockSize2, myLayers(0), myLayers.last)
 
     val iceModel: IceFeedForwardModel = IceFeedForwardTopology
-      .multiLayerPerceptron(layers, dataset.count(), iceMult)
+      .multiLayerPerceptron(layers2, dataset.count(), iceMult)
       .model(weights)
 
     val gradient: ANNGradient2 = new ANNGradient2(iceModel.topology, dataStacker)
@@ -539,7 +539,7 @@ object IcePerceptronClassificationModel
       // Save metadata and Params
       DefaultParamsWriter.saveMetadata(instance, path, sc)
       // Save model data: layers, weights
-      val data = Data(instance.layers, instance.weights)
+      val data = Data(instance.layers2, instance.weights)
       val dataPath = new Path(path, "data").toString
       sparkSession.createDataFrame(Seq(data)).repartition(1).write.parquet(dataPath)
     }
