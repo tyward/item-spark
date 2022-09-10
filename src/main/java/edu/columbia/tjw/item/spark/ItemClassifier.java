@@ -52,6 +52,8 @@ public class ItemClassifier
 {
     private static final long serialVersionUID = 0x7cc313e747f68becL;
 
+    public static final int DEFAULT_TEST_ROW_COUNT = 10000;
+
     private final ItemClassifierSettings _settings;
     private final ItemParameters<SimpleStatus, SimpleRegressor, StandardCurveType> _startingParams;
     private String _uid;
@@ -114,7 +116,8 @@ public class ItemClassifier
     }
 
     public static VectorAssembler prepareAssembler(final ItemClassifierSettings settings_,
-                                                   final String featuresColumn_) {
+                                                   final String featuresColumn_)
+    {
         final List<SimpleRegressor> regs = settings_.getRegressors();
         final String[] regNames = new String[regs.size()];
         int pointer = 0;
@@ -153,7 +156,19 @@ public class ItemClassifier
                                                          final Set<String> curveRegressors_, final int maxParamCount_,
                                                          final ItemSettings settings_)
     {
-        final Iterator<?> iter = data_.select(toStatusColumn_).distinct().toLocalIterator();
+        return prepareSettings(data_, toStatusColumn_, featureList, curveRegressors_, maxParamCount_,
+                settings_, DEFAULT_TEST_ROW_COUNT);
+    }
+
+    public static ItemClassifierSettings prepareSettings(final Dataset<?> data_, final String toStatusColumn_,
+                                                         final List<String> featureList,
+                                                         final Set<String> curveRegressors_, final int maxParamCount_,
+                                                         final ItemSettings settings_, final int testRowCount_)
+    {
+        // We assume this data is randomized, so that all of the toStatus values are represented
+        // (somewhat fairly) in the first testRowCount_ rows.
+        final Iterator<?> iter = data_.select(toStatusColumn_)
+                .limit(testRowCount_).toLocalIterator();
         final SortedMap<Integer, Integer> statSet = new TreeMap<>();
 
         while (iter.hasNext())
