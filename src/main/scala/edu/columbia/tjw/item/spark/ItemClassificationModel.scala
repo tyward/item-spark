@@ -36,21 +36,26 @@ class ItemClassificationModel(override val uid: String, val _fitResult: FitResul
     with java.io.Serializable {
 
   def this(fitResult: FitResult[SimpleStatus, SimpleRegressor, StandardCurveType],
-    settings: ItemClassifierSettings) {
+           settings: ItemClassifierSettings) {
     this(RandomTool.randomString(16), fitResult, settings);
   }
 
   def write: MLWriter = new ModelWriterSerializable[ItemClassificationModel](this);
 
   val paramFields: util.List[SimpleRegressor] = getParams.getUniqueRegressors
-  _offsetMap = new Array[Int](paramFields.size)
-  for (i <- 1 until paramFields.size) {
-    val next: SimpleRegressor = paramFields.get(i)
-    val index: Int = _settings.getRegressors.indexOf(next)
-    if (-1 == index) throw new IllegalArgumentException("Missing regressors from fields.")
-    _offsetMap(i) = index
+  final private var _offsetMap: Array[Int] = {
+    var offsetMap = new Array[Int](paramFields.size)
+
+    for (i <- 1 until paramFields.size) {
+      val next: SimpleRegressor = paramFields.get(i)
+      val index: Int = _settings.getRegressors.indexOf(next)
+      if (-1 == index) throw new IllegalArgumentException("Missing regressors from fields.")
+      offsetMap(i) = index
+    }
+
+    offsetMap
   }
-  final private var _offsetMap: Array[Int] = null
+
   private var _model: ItemModel[SimpleStatus, SimpleRegressor, StandardCurveType] = null
   private var _rawRegressors: Array[Double] = null
 
