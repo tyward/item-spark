@@ -43,7 +43,7 @@ public class ItemClassifierTest
         SortedSet<String> curveColumns = new TreeSet<>(inputCols);
 
         final ItemSettings.Builder settingsBuilder = ItemSettings.newBuilder();
-        settingsBuilder.setRand(RandomTool.getRandom(PrngType.SECURE, 12345));
+        settingsBuilder.setRand(RandomTool.getRandomGenerator(PrngType.SECURE, 12345));
 
         ItemClassifierSettings settings = ItemClassifier.prepareSettings(frame, "NEXT_STATUS", inputCols,
                 curveColumns,

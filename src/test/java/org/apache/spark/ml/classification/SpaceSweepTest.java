@@ -3,6 +3,7 @@ package org.apache.spark.ml.classification;
 import edu.columbia.tjw.item.spark.ClassificationModelEvaluator;
 import edu.columbia.tjw.item.util.random.PrngType;
 import edu.columbia.tjw.item.util.random.RandomTool;
+import org.apache.commons.math3.random.RandomGenerator;
 import org.apache.spark.ml.classification.TestUtil.GeneratedData;
 import org.apache.spark.ml.linalg.Vector;
 import org.apache.spark.sql.Dataset;
@@ -35,7 +36,7 @@ class SpaceSweepTest
         final SparkSession spark = TestUtil.generateSparkSession();
         final Dataset<Row> frame = TestUtil.generateData(spark);
 
-        final Random rand = RandomTool.getRandom(PrngType.SECURE, PRNG_SEED);
+        final RandomGenerator rand = RandomTool.getRandomGenerator(PrngType.SECURE, PRNG_SEED);
 
         final int[][] testLayers = new int[][]{
                 {TestUtil.INPUT_COLS.size(), STATUS_COUNT},
